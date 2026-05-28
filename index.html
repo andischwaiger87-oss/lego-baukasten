@@ -1,0 +1,3274 @@
+<!DOCTYPE html>
+<html lang="de" class="h-full bg-slate-50 text-slate-900">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BrickCraft Studio Pro 3D</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <style>
+        body { 
+            font-family: 'Inter', system-ui, sans-serif;
+            overflow: hidden;
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="h-full flex flex-col antialiased select-none bg-slate-50 p-4 gap-4">
+
+    <header class="bg-white border border-slate-200/80 px-4 py-3 flex items-center justify-between z-10 shrink-0 rounded-2xl shadow-sm relative">
+    <div class="flex items-center space-x-2">
+        <span class="text-xl md:text-2xl">🧱</span>
+        <h1 class="font-bold text-lg md:text-xl tracking-tight text-slate-900">BrickCraft <span class="text-indigo-600">Kids</span></h1>
+    </div>
+
+    <div class="flex items-center space-x-1.5">
+        <button onclick="App.undo()" class="w-10 h-10 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl transition-all flex items-center justify-center border border-slate-200 cursor-pointer" title="Rückgängig">
+            <i class="fa-solid fa-arrow-rotate-left text-sm"></i>
+        </button>
+        <button onclick="App.redo()" class="w-10 h-10 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl transition-all flex items-center justify-center border border-slate-200 cursor-pointer" title="Wiederholen">
+            <i class="fa-solid fa-arrow-rotate-right text-sm"></i>
+        </button>
+        
+        <div class="hidden lg:flex items-center space-x-1.5">
+            <div class="h-5 w-[1px] bg-slate-200 mx-1"></div>
+            <label class="w-10 h-10 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl transition-all flex items-center justify-center border border-slate-200 cursor-pointer" title="Modell öffnen (Import)">
+                <i class="fa-solid fa-upload text-sm"></i>
+                <input type="file" id="import-file" class="hidden" accept=".json" onchange="App.importJSON(event)">
+            </label>
+            <button onclick="App.exportJSON()" class="w-10 h-10 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl transition-all flex items-center justify-center border border-slate-200 cursor-pointer" title="Modell speichern (Export)">
+                <i class="fa-solid fa-download text-sm"></i>
+            </button>
+            <div class="h-5 w-[1px] bg-slate-200 mx-1"></div>
+            <button onclick="App.clearScene()" class="w-10 h-10 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-all flex items-center justify-center border border-rose-100 cursor-pointer" title="Spielfeld leeren">
+                <i class="fa-solid fa-trash-can text-sm"></i>
+            </button>
+        </div>
+
+        <button id="mobile-more-trigger" onclick="App.toggleMobileMenu(event)" class="lg:hidden w-10 h-10 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl transition-all flex items-center justify-center border border-slate-200 cursor-pointer">
+            <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+        </button>
+    </div>
+
+    <div id="mobile-action-dropdown" class="hidden absolute right-4 top-16 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-1.5 z-50 flex flex-col gap-0.5">
+        <button onclick="document.getElementById('import-file').click(); App.toggleMobileMenu();" class="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl flex items-center cursor-pointer">
+            <i class="fa-solid fa-upload text-slate-400 w-5 mr-2 text-sm"></i> Modell öffnen (Import)
+        </button>
+        <button onclick="App.exportJSON(); App.toggleMobileMenu();" class="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl flex items-center cursor-pointer">
+            <i class="fa-solid fa-download text-slate-400 w-5 mr-2 text-sm"></i> Modell speichern (Export)
+        </button>
+        <div class="h-[1px] bg-slate-100 my-1 mx-2"></div>
+        <button onclick="App.clearScene(); App.toggleMobileMenu();" class="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl flex items-center cursor-pointer">
+            <i class="fa-solid fa-trash-can text-rose-400 w-5 mr-2 text-sm"></i> Spielfeld leeren
+        </button>
+    </div>
+</header>
+
+    <div class="flex-1 flex overflow-hidden relative gap-4">
+
+        <aside id="sidebar-left" class="w-80 bg-white border border-slate-200/80 rounded-2xl flex flex-col z-10 transition-all duration-300 absolute md:static inset-y-0 left-0 transform -translate-x-full md:translate-x-0 shadow-sm">
+            <div class="p-4 border-b border-slate-100">
+                <h2 class="font-semibold text-base text-slate-900">Bausteine</h2>
+            </div>
+            <div class="p-3 bg-slate-50/50 flex flex-wrap gap-1.5 border-b border-slate-100" id="category-tabs"></div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-2" id="brick-list"></div>
+        </aside>
+
+        <main class="flex-1 relative flex flex-col overflow-hidden bg-white border border-slate-200/80 rounded-2xl shadow-sm">
+            <div class="absolute top-4 right-4 z-10 flex space-x-1 bg-white/90 p-1 rounded-xl border border-slate-200 shadow-sm backdrop-blur">
+                <button onclick="Engine3D.setView('iso')" class="p-2 hover:bg-slate-100 text-slate-700 rounded-lg text-sm font-semibold transition-colors cursor-pointer" title="3D Drehen"><i class="fa-solid fa-cube"></i></button>
+                <button onclick="Engine3D.setView('top')" class="p-2 hover:bg-slate-100 text-slate-700 rounded-lg text-sm font-semibold transition-colors cursor-pointer" title="Von Oben"><i class="fa-solid fa-border-all"></i></button>
+            </div>
+
+            <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 bg-slate-900/95 p-2 rounded-2xl shadow-xl flex space-x-2 backdrop-blur">
+                <button id="tool-place" onclick="App.setTool('place')" class="w-14 h-14 rounded-xl flex items-center justify-center transition-all bg-indigo-600 text-white cursor-pointer shadow-lg" title="Bauen">
+                    <i class="fa-solid fa-hammer text-xl"></i>
+                </button>
+                <button id="tool-paint" onclick="App.setTool('paint')" class="w-14 h-14 rounded-xl flex items-center justify-center transition-all text-slate-400 hover:text-white cursor-pointer" title="Färben">
+                    <i class="fa-solid fa-paint-roller text-xl"></i>
+                </button>
+                <button id="tool-delete" onclick="App.setTool('delete')" class="w-14 h-14 rounded-xl flex items-center justify-center transition-all text-slate-400 hover:text-white cursor-pointer" title="Löschen">
+                    <i class="fa-solid fa-bomb text-xl"></i>
+                </button>
+            </div>
+
+            <div id="canvas-container" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
+
+            <div id="instruction-panel" class="hidden absolute inset-x-6 top-6 bg-slate-900 text-white p-4 rounded-xl shadow-xl flex items-center justify-between z-20">
+                <button onclick="Instructions.prevStep()" class="w-11 h-11 bg-slate-800 hover:bg-slate-700 text-white rounded-lg flex items-center justify-center cursor-pointer"><i class="fa-solid fa-chevron-left"></i></button>
+                <span id="instruction-step-text" class="text-sm font-medium tracking-wide">SCHRITT 1</span>
+                <button onclick="Instructions.nextStep()" class="w-11 h-11 bg-slate-800 hover:bg-slate-700 text-white rounded-lg flex items-center justify-center cursor-pointer"><i class="fa-solid fa-chevron-right"></i></button>
+                <button onclick="Instructions.stop()" class="h-10 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-lg text-sm cursor-pointer transition-colors">Fertig</button>
+            </div>
+        </main>
+
+        <aside id="sidebar-right" class="w-72 bg-white border border-slate-200/80 rounded-2xl flex flex-col z-10 transition-all duration-300 absolute lg:static inset-y-0 right-0 transform translate-x-full lg:translate-x-0 shadow-sm">
+            <div class="p-4 border-b border-slate-100">
+                <h2 class="font-semibold text-base text-slate-900">Farben</h2>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 flex flex-col justify-between gap-4">
+                <div class="grid grid-cols-4 gap-2.5" id="color-grid"></div>
+
+                <div id="blueprint-area" class="hidden">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Vorlagen</span>
+                    <div id="blueprint-grid" class="grid grid-cols-1 gap-1.5"></div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-100">
+                    <button onclick="Instructions.start()" class="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl shadow-sm transition-all text-sm tracking-wide flex items-center justify-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-book-open text-base"></i> Bauanleitung
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+    </div>
+
+    <script>
+        const Registry = {
+            categories: {
+                'standard': '🧱 Blöcke',
+                'plates': '🫓 Platten',
+                'special': '🚀 Extras',
+                'space': '🌌 Orbit',
+                'castle': '🏰 Burg',
+                'nature': '🌳 Natur',
+                'vehicles': '🏎 Auto'
+            },
+            bricks: {
+                'b11': { name: 'Würfel 1x1', size: [1, 1, 1], category: 'standard', shape: 'box' },
+                'b12': { name: 'Stein 1x2', size: [1, 2, 1], category: 'standard', shape: 'box' },
+                'b22': { name: 'Stein 2x2', size: [2, 2, 1], category: 'standard', shape: 'box' },
+                'b24': { name: 'Stein 2x4', size: [2, 4, 1], category: 'standard', shape: 'box' },
+                'p12': { name: 'Platte 1x2', size: [1, 2, 0.33], category: 'plates', shape: 'box' },
+                'p22': { name: 'Platte 2x2', size: [2, 2, 0.33], category: 'plates', shape: 'box' },
+                'p44': { name: 'Platte 4x4', size: [4, 4, 0.33], category: 'plates', shape: 'box' },
+                's_slope1': { name: 'Dachschräge 1x1', size: [1, 1, 1], category: 'special', shape: 'slope' },
+                's_slope2': { name: 'Dachschräge 1x2', size: [1, 2, 1], category: 'special', shape: 'slope' },
+                's_cyl1': { name: 'Säule 1x1', size: [1, 1, 1], category: 'special', shape: 'cylinder' },
+                's_cyl2': { name: 'Turm 2x2', size: [2, 2, 1], category: 'special', shape: 'cylinder' },
+                's_cone': { name: 'Kegel-Spitze', size: [1, 1, 1], category: 'special', shape: 'cone' },
+                's_arch': { name: 'Tor-Bogen', size: [1, 3, 2], category: 'special', shape: 'arch' },
+                's_wheel': { name: 'Laufrad', size: [1, 1, 1], category: 'special', shape: 'wheel' },
+                
+                // Preload-Staging für Extensions
+                'sp_thruster': { name: 'Triebwerk', size: [1, 1, 1.5], category: 'space', shape: 'cone' },
+                'sp_wing_l': { name: 'Flügel Links', size: [2, 3, 1], category: 'space', shape: 'slope' },
+                'sp_wing_r': { name: 'Flügel Rechts', size: [2, 3, 1], category: 'space', shape: 'slope' },
+                'sp_antenna': { name: 'Antenne', size: [1, 1, 2], category: 'space', shape: 'cylinder' },
+                'sp_cockpit': { name: 'Cockpit-Kuppel', size: [2, 2, 1.2], category: 'space', shape: 'sphere' },
+                'ca_crenel': { name: 'Burg-Zinne', size: [1, 2, 1], category: 'castle', shape: 'crenel' },
+                'ca_tower_round': { name: 'Rundturm', size: [2, 2, 3], category: 'castle', shape: 'cylinder' },
+                'ca_stairs': { name: 'Stufen-Treppe', size: [2, 2, 1], category: 'castle', shape: 'stairs' },
+                'na_leaf_small': { name: 'Blattwerk', size: [1, 1, 0.4], category: 'nature', shape: 'leaf' },
+                'na_trunk': { name: 'Baumstamm', size: [1, 1, 1.5], category: 'nature', shape: 'cylinder' },
+                'na_flower': { name: 'Blütenkopf', size: [1, 1, 0.3], category: 'nature', shape: 'flower' },
+                'na_crystal': { name: 'Kristall', size: [1, 1, 1.2], category: 'nature', shape: 'crystal' },
+                've_wheel_big': { name: 'Breit-Reifen', size: [1.5, 1, 1.5], category: 'vehicles', shape: 'wheel' },
+                's_fence_wood': { name: 'Zaun-Element', size: [0.2, 2, 1], category: 'special', shape: 'fence' },
+                's_pipe_hollow': { name: 'Tunnel-Rohr', size: [1.5, 1.5, 1.5], category: 'special', shape: 'pipe' }
+            },
+            colors: [
+                { id: 'red', name: 'Rot', hex: '#ef4444' },
+                { id: 'blue', name: 'Blau', hex: '#3b82f6' },
+                { id: 'yellow', name: 'Gelb', hex: '#eab308' },
+                { id: 'green', name: 'Grün', hex: '#22c55e' },
+                { id: 'pink', name: 'Pink', hex: '#ec4899' },
+                { id: 'orange', name: 'Orange', hex: '#f97316' },
+                { id: 'purple', name: 'Lila', hex: '#a855f7' },
+                { id: 'white', name: 'Weiß', hex: '#f1f5f9' },
+                { id: 'gold', name: 'Gold', hex: '#fbbf24', metalness: 0.7, roughness: 0.2 },
+                { id: 'pastel_mint', name: 'Mint', hex: '#a7f3d0' },
+                { id: 'trans_ruby', name: 'Glas-Rot', hex: '#f43f5e', transparent: true, opacity: 0.5 },
+                { id: 'dark_iron', name: 'Eisen', hex: '#475569', metalness: 0.8, roughness: 0.4 }
+            ]
+        };
+
+        const GeometryFactory = {
+            create(brickId) {
+                const config = Registry.bricks[brickId];
+                const w = config.size[0] * App.spatialUnit;
+                const l = config.size[1] * App.spatialUnit;
+                const h = config.size[2] * App.spatialHeight;
+                const group = new THREE.Group();
+                let baseGeo;
+
+                switch(config.shape) {
+                    case 'slope':
+                        const shape = new THREE.Shape();
+                        shape.moveTo(0, 0); shape.lineTo(w, 0); shape.lineTo(w, h * 0.2); shape.lineTo(0, h); shape.lineTo(0, 0);
+                        baseGeo = new THREE.ExtrudeGeometry(shape, { depth: l, bevelEnabled: false });
+                        baseGeo.rotateY(Math.PI/2); baseGeo.translate(0, 0, l);
+                        break;
+                    case 'cylinder':
+                        baseGeo = new THREE.CylinderGeometry(w/2 - 0.02, w/2 - 0.02, h, 24);
+                        baseGeo.translate(0, h/2, 0);
+                        break;
+                    case 'cone':
+                        baseGeo = new THREE.ConeGeometry(w/2, h, 24);
+                        baseGeo.translate(0, h/2, 0);
+                        break;
+                    case 'arch':
+                        const archShape = new THREE.Shape();
+                        archShape.moveTo(-w/2, 0); archShape.lineTo(w/2, 0); archShape.lineTo(w/2, h); archShape.lineTo(-w/2, h);
+                        const hole = new THREE.Path(); hole.absarc(0, 0, w/3, 0, Math.PI, false);
+                        archShape.holes.push(hole);
+                        baseGeo = new THREE.ExtrudeGeometry(archShape, { depth: l, bevelEnabled: false });
+                        baseGeo.translate(0, 0, l/2);
+                        break;
+                    case 'wheel':
+                        baseGeo = new THREE.CylinderGeometry(w/2, w/2, l*0.8, 24);
+                        baseGeo.rotateX(Math.PI/2); baseGeo.translate(0, h/2, 0);
+                        break;
+                    case 'crenel':
+                        const cGroup = new THREE.Group();
+                        const bBox = new THREE.BoxGeometry(w, h * 0.5, l); bBox.translate(0, (h * 0.5) / 2, 0);
+                        cGroup.add(new THREE.Mesh(bBox));
+                        const p1 = new THREE.BoxGeometry(w, h * 0.5, l * 0.3); p1.translate(0, h * 0.75, -l/2 + (l * 0.15));
+                        cGroup.add(new THREE.Mesh(p1));
+                        return cGroup;
+                    case 'stairs':
+                        const steps = 4;
+                        for(let i = 0; i < steps; i++) {
+                            const sGeo = new THREE.BoxGeometry(w, h * ((i + 1) / steps), l / steps);
+                            sGeo.translate(0, (h * ((i + 1) / steps)) / 2, -l/2 + (l / steps * i) + (l / steps)/2);
+                            group.add(new THREE.Mesh(sGeo));
+                        }
+                        return group;
+                    case 'leaf':
+                        const lShape = new THREE.Shape(); lShape.moveTo(0, 0); lShape.quadraticCurveTo(w/2, l/2, 0, l); lShape.quadraticCurveTo(-w/2, l/2, 0, 0);
+                        baseGeo = new THREE.ExtrudeGeometry(lShape, { depth: h, bevelEnabled: false }); baseGeo.rotateX(-Math.PI/2);
+                        break;
+                    case 'flower':
+                        baseGeo = new THREE.CylinderGeometry(w/4, w/4, h, 16); baseGeo.translate(0, h/2, 0);
+                        break;
+                    case 'crystal':
+                        baseGeo = new THREE.ConeGeometry(w/2, h, 6); baseGeo.translate(0, h/2, 0);
+                        break;
+                    case 'sphere':
+                        baseGeo = new THREE.SphereGeometry(w/2, 24, 24); baseGeo.translate(0, h/2, 0);
+                        break;
+                    case 'box':
+                    default:
+                        baseGeo = new THREE.BoxGeometry(w - 0.03, h, l - 0.03);
+                        baseGeo.translate(0, h/2, 0);
+                        break;
+                }
+
+                group.add(new THREE.Mesh(baseGeo));
+
+                if (config.shape === 'box' || config.shape === 'plates') {
+                    const studR = 0.16, studH = 0.08;
+                    const studGeo = new THREE.CylinderGeometry(studR, studR, studH, 12);
+                    studGeo.translate(0, studH/2, 0);
+                    const startX = -w / 2 + App.spatialUnit / 2;
+                    const startZ = -l / 2 + App.spatialUnit / 2;
+
+                    for (let x = 0; x < config.size[0]; x++) {
+                        for (let z = 0; z < config.size[1]; z++) {
+                            const stud = new THREE.Mesh(studGeo);
+                            stud.position.set(startX + x * App.spatialUnit, h, startZ + z * App.spatialUnit);
+                            group.add(stud);
+                        }
+                    }
+                }
+                return group;
+            }
+        };
+
+        const Engine3D = {
+            scene: null, camera: null, renderer: null, controls: null, plane: null,
+            raycaster: new THREE.Raycaster(), mouse: new THREE.Vector2(),
+            previewMesh: null, currentRotationY: 0, 
+            interactObjects: [],
+            pointerStart: new THREE.Vector2(),
+
+            init() {
+                const container = document.getElementById('canvas-container');
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0xf8fafc);
+
+                this.camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+                this.setView('iso');
+
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(container.clientWidth, container.clientHeight);
+                this.renderer.shadowMap.enabled = true;
+                container.appendChild(this.renderer.domElement);
+
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+                this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+                const sun = new THREE.DirectionalLight(0xffffff, 0.6);
+                sun.position.set(15, 30, 15); sun.castShadow = true;
+                this.scene.add(sun);
+
+                const grid = new THREE.GridHelper(App.playgroundSize, App.playgroundSize, 0x6366f1, 0xcbd5e1);
+                grid.position.y = 0.005; this.scene.add(grid);
+
+                const planeGeo = new THREE.PlaneGeometry(App.playgroundSize, App.playgroundSize);
+                planeGeo.rotateX(-Math.PI / 2);
+                this.plane = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ visible: false }));
+                this.scene.add(this.plane); this.interactObjects.push(this.plane);
+
+                this.refreshPreview();
+
+                container.addEventListener('mousemove', (e) => this.onMouseMove(e));
+                
+                container.addEventListener('pointerdown', (e) => {
+                    this.pointerStart.set(e.clientX, e.clientY);
+                });
+
+                container.addEventListener('pointerup', (e) => {
+                    if (e.button !== 0) return;
+                    const dragDistance = Math.hypot(e.clientX - this.pointerStart.x, e.clientY - this.pointerStart.y);
+                    if (dragDistance < 5) {
+                        this.onPointerClick(e);
+                    }
+                });
+
+                window.addEventListener('keydown', (e) => { if (e.key.toLowerCase() === 'r') this.rotatePreview(); });
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = container.clientWidth / container.clientHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(container.clientWidth, container.clientHeight);
+                });
+
+                this.loop();
+            },
+
+            setView(mode) {
+                if(mode === 'iso') this.camera.position.set(12, 12, 12);
+                else this.camera.position.set(0.01, 20, 0);
+                if(this.controls) this.controls.target.set(0,0,0);
+            },
+
+            getMaterial(colorId, isPreview = false) {
+                const data = Registry.colors.find(c => c.id === colorId);
+                return new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(data.hex),
+                    roughness: data.roughness || 0.3,
+                    metalness: data.metalness || 0.0,
+                    transparent: isPreview, opacity: isPreview ? 0.5 : 1.0
+                });
+            },
+
+            refreshPreview() {
+                if(this.previewMesh) this.scene.remove(this.previewMesh);
+                this.previewMesh = new THREE.Group();
+                const geo = GeometryFactory.create(App.selectedBrick);
+                const mat = this.getMaterial(App.selectedColor, true);
+                geo.children.forEach(c => { const clone = c.clone(); clone.material = mat; this.previewMesh.add(clone); });
+                this.previewMesh.visible = (App.activeTool === 'place');
+                this.scene.add(this.previewMesh);
+            },
+
+            rotatePreview() {
+                this.currentRotationY = (this.currentRotationY + Math.PI / 2) % (Math.PI * 2);
+                if(this.previewMesh) this.previewMesh.rotation.y = this.currentRotationY;
+            },
+
+            onMouseMove(e) {
+                const rect = this.renderer.domElement.getBoundingClientRect();
+                this.mouse.x = ((e.clientX - rect.left) / this.renderer.domElement.clientWidth) * 2 - 1;
+                this.mouse.y = -((e.clientY - rect.top) / this.renderer.domElement.clientHeight) * 2 + 1;
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+                const hits = this.raycaster.intersectObjects(this.interactObjects, true);
+
+                if (hits.length > 0 && App.activeTool === 'place') {
+                    const hit = hits[0]; const pos = new THREE.Vector3(); const conf = Registry.bricks[App.selectedBrick];
+                    let w = conf.size[0] * App.spatialUnit; let l = conf.size[1] * App.spatialUnit;
+
+                    const isRotated = (Math.abs(Math.sin(this.currentRotationY)) > 0.5);
+                    let sizeX = isRotated ? conf.size[1] : conf.size[0];
+                    let sizeZ = isRotated ? conf.size[0] : conf.size[1];
+
+                    let targetPoint = hit.point.clone();
+                    if (hit.object !== this.plane) {
+                        const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
+                        targetPoint.add(normal.multiplyScalar(0.1));
+                    }
+
+                    if (sizeX % 2 === 0) pos.x = Math.round(targetPoint.x);
+                    else pos.x = Math.round(targetPoint.x - 0.5) + 0.5;
+
+                    if (sizeZ % 2 === 0) pos.z = Math.round(targetPoint.z);
+                    else pos.z = Math.round(targetPoint.z - 0.5) + 0.5;
+
+                    if (hit.object === this.plane) pos.y = 0;
+                    else pos.y = Math.round(targetPoint.y / App.spatialHeight) * App.spatialHeight;
+
+                    this.previewMesh.position.copy(pos); this.previewMesh.visible = true;
+                }
+            },
+
+            onPointerClick(e) {
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+                const hits = this.raycaster.intersectObjects(this.interactObjects, true);
+
+                if (hits.length > 0) {
+                    const hit = hits[0];
+                    if (App.activeTool === 'place' && this.previewMesh.visible) {
+                        App.buildBrickAt(this.previewMesh.position, this.currentRotationY);
+                    } else if (hit.object !== this.plane) {
+                        let root = hit.object; while(root.parent && root.parent !== this.scene) root = root.parent;
+                        if (App.activeTool === 'delete') App.destroyBrick(root.uuid);
+                        else if (App.activeTool === 'paint') App.paintBrick(root.uuid);
+                    }
+                }
+            },
+
+            spawn(brick) {
+                const meshGroup = new THREE.Group(); const template = GeometryFactory.create(brick.type); const mat = this.getMaterial(brick.color, false);
+                template.children.forEach(c => { const cloned = c.clone(); cloned.material = mat; cloned.castShadow = cloned.receiveShadow = true; meshGroup.add(cloned); });
+                meshGroup.position.set(brick.pos[0], brick.pos[1], brick.pos[2]); meshGroup.rotation.y = brick.rot;
+                this.scene.add(meshGroup); brick.uuid = meshGroup.uuid; this.interactObjects.push(meshGroup);
+            },
+
+            remove(uuid) {
+                const obj = this.scene.getObjectByProperty('uuid', uuid);
+                if(obj) { this.scene.remove(obj); const idx = this.interactObjects.indexOf(obj); if(idx !== -1) this.interactObjects.splice(idx, 1); }
+            },
+
+            loop() { 
+                requestAnimationFrame(() => this.loop()); 
+                if(this.controls) this.controls.update(); 
+                if(this.renderer) this.renderer.render(this.scene, this.camera); 
+                if(window.ParticleEngine) ParticleEngine.update();
+            }
+        };
+
+        const UIManager = {
+            init() { this.renderTabs(); this.renderBricks('standard'); this.renderColors(); },
+            renderTabs() {
+                const area = document.getElementById('category-tabs'); area.innerHTML = '';
+                Object.keys(Registry.categories).forEach((cat, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = `px-3 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${idx===0?'bg-indigo-600 text-white shadow-sm':'bg-slate-100 text-slate-600 hover:bg-slate-200'}`;
+                    btn.innerText = Registry.categories[cat];
+                    btn.onclick = () => {
+                        document.querySelectorAll('#category-tabs button').forEach(b => b.className = "px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer");
+                        btn.className = "px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 text-white shadow-sm cursor-pointer";
+                        this.renderBricks(cat);
+                    };
+                    area.appendChild(btn);
+                });
+            },
+            renderBricks(category) {
+                const list = document.getElementById('brick-list'); list.innerHTML = '';
+                Object.keys(Registry.bricks).forEach(id => {
+                    const b = Registry.bricks[id]; if(b.category !== category) return;
+                    const isSel = App.selectedBrick === id; const el = document.createElement('div');
+                    el.className = `p-3 bg-slate-50 border rounded-xl flex items-center justify-between cursor-pointer transition-all ${isSel?'border-indigo-500 bg-indigo-50/30 shadow-sm':'border-slate-200 hover:border-slate-300'}`;
+                    el.onclick = () => { App.selectedBrick = id; this.renderBricks(category); Engine3D.refreshPreview(); };
+                    el.innerHTML = `<span class="font-medium text-sm text-slate-800">${b.name}</span><span class="text-[11px] font-semibold bg-white border border-slate-200 px-2 py-0.5 rounded-md text-slate-500">${b.size[0]}x${b.size[1]}</span>`;
+                    list.appendChild(el);
+                });
+            },
+            renderColors() {
+                const grid = document.getElementById('color-grid'); grid.innerHTML = '';
+                Registry.colors.forEach(c => {
+                    const isSel = App.selectedColor === c.id; const btn = document.createElement('button');
+                    btn.className = `w-full aspect-square rounded-full transition-all shadow-sm relative transform hover:scale-105 cursor-pointer ${isSel?'ring-2 ring-indigo-500 ring-offset-2 scale-105':''}`;
+                    btn.style.backgroundColor = c.hex; btn.title = c.name;
+                    btn.onclick = () => { App.selectedColor = c.id; this.renderColors(); Engine3D.refreshPreview(); };
+                    if(isSel) btn.innerHTML = '<i class="fa-solid fa-check text-white mix-blend-difference text-sm"></i>';
+                    grid.appendChild(btn);
+                });
+            }
+        };
+
+        const SoundFX = {
+            ctx: null,
+            play(type) {
+                if(!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = this.ctx.createOscillator(), gain = this.ctx.createGain(); osc.connect(gain); gain.connect(this.ctx.destination);
+                if (type === 'click') {
+                    osc.frequency.setValueAtTime(220, this.ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(580, this.ctx.currentTime + 0.03);
+                    gain.gain.setValueAtTime(0.08, this.ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
+                    osc.start(); osc.stop(this.ctx.currentTime + 0.04);
+                } else if(type === 'boom') {
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(100, this.ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(15, this.ctx.currentTime + 0.12);
+                    gain.gain.setValueAtTime(0.15, this.ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.13);
+                    osc.start(); osc.stop(this.ctx.currentTime + 0.13);
+                }
+            }
+        };
+
+        const BlueprintManager = {
+            blueprints: {},
+            init() {
+                const grid = document.getElementById('blueprint-grid');
+                if (!grid) return;
+                grid.innerHTML = '';
+                const area = document.getElementById('blueprint-area');
+                if (Object.keys(this.blueprints).length === 0) {
+                    if (area) area.className = "hidden";
+                    return;
+                }
+                if (area) area.className = "p-3 bg-slate-50 rounded-xl border border-slate-200/50";
+                Object.keys(this.blueprints).forEach(key => {
+                    const bp = this.blueprints[key]; const btn = document.createElement('button');
+                    btn.className = "w-full text-left py-2 px-3 bg-white hover:bg-slate-100 font-medium text-xs rounded-xl shadow-sm transition-all flex items-center justify-between border border-slate-200 cursor-pointer";
+                    btn.innerHTML = `<span>${bp.name}</span> <i class="fa-solid fa-wand-magic-sparkles text-indigo-500"></i>`;
+                    btn.onclick = () => this.load(key); grid.appendChild(btn);
+                });
+            },
+            load(key) {
+                if (!this.blueprints[key]) return;
+                App.placedBricks.forEach(b => Engine3D.remove(b.uuid)); App.placedBricks = [];
+                this.blueprints[key].blocks.forEach(b => { App.selectedBrick = b.type; App.selectedColor = b.color; App.buildBrickAt(new THREE.Vector3(b.pos[0], b.pos[1], b.pos[2]), b.rot); });
+                Engine3D.setView('iso'); UIManager.renderBricks('standard');
+            }
+        };
+
+        const Instructions = {
+            active: false, step: 0, order: [],
+            start() {
+                if(App.placedBricks.length === 0) return;
+                this.active = true; this.step = 0; this.order = [...App.placedBricks].sort((a,b) => a.pos[1] - b.pos[1]);
+                document.getElementById('instruction-panel').classList.remove('hidden');
+                App.setTool('place'); Engine3D.previewMesh.visible = false; this.sync();
+            },
+            sync() {
+                this.order.forEach((b, idx) => { const m = Engine3D.scene.getObjectByProperty('uuid', b.uuid); if(m) m.visible = idx <= this.step; });
+                document.getElementById('instruction-step-text').innerText = `Schritt ${this.step + 1} von ${this.order.length}`;
+            },
+            nextStep() { if(this.step < this.order.length-1) { this.step++; SoundFX.play('click'); this.sync(); } },
+            prevStep() { if(this.step > 0) { this.step--; SoundFX.play('click'); this.sync(); } },
+            stop() {
+                this.active = false; document.getElementById('instruction-panel').classList.add('hidden');
+                this.order.forEach(b => { const m = Engine3D.scene.getObjectByProperty('uuid', b.uuid); if(m) m.visible = true; });
+            }
+        };
+
+        const App = {
+            playgroundSize: 32, spatialUnit: 1.0, spatialHeight: 1.2,
+            selectedBrick: 'b22', selectedColor: 'red', activeTool: 'place',
+            placedBricks: [], history: [], historyIdx: -1,
+
+            init() { 
+                Engine3D.init(); 
+                UIManager.init(); 
+                this.save(); 
+            },
+            
+            setTool(tool) {
+                this.activeTool = tool;
+                ['place', 'paint', 'delete'].forEach(t => {
+                    const el = document.getElementById(`tool-${t}`);
+                    if (el) {
+                        if (t === tool) {
+                            el.className = "w-14 h-14 rounded-xl flex items-center justify-center transition-all bg-indigo-600 text-white cursor-pointer shadow-md scale-105";
+                        } else {
+                            el.className = "w-14 h-14 rounded-xl flex items-center justify-center transition-all text-slate-400 hover:text-slate-200 cursor-pointer";
+                        }
+                    }
+                });
+                if (Engine3D.previewMesh) {
+                    Engine3D.previewMesh.visible = (tool === 'place');
+                }
+            },
+            
+            buildBrickAt(vector3, rotation) {
+                const brick = { 
+                    id: Math.random().toString(36).substring(2), 
+                    type: this.selectedBrick, 
+                    color: this.selectedColor, 
+                    pos: [vector3.x, vector3.y, vector3.z], 
+                    rot: rotation 
+                };
+                this.placedBricks.push(brick); 
+                Engine3D.spawn(brick); 
+                SoundFX.play('click'); 
+                this.save();
+            },
+            
+            destroyBrick(uuid) {
+                const idx = this.placedBricks.findIndex(b => b.uuid === uuid);
+                if (idx !== -1) { 
+                    const b = this.placedBricks[idx];
+                    const colorObj = Registry.colors.find(c => c.id === b.color);
+                    const hex = colorObj ? colorObj.hex : '#ffffff';
+                    
+                    if (window.ParticleEngine) {
+                        ParticleEngine.spawnExplosion(new THREE.Vector3(b.pos[0], b.pos[1], b.pos[2]), hex);
+                    }
+                    
+                    Engine3D.remove(uuid); 
+                    this.placedBricks.splice(idx, 1); 
+                    SoundFX.play('boom'); 
+                    this.save(); 
+                }
+            },
+            
+            paintBrick(uuid) {
+                const b = this.placedBricks.find(brick => brick.uuid === uuid);
+                if (b) { 
+                    b.color = this.selectedColor; 
+                    Engine3D.remove(uuid); 
+                    Engine3D.spawn(b); 
+                    SoundFX.play('click'); 
+                    this.save(); 
+                }
+            },
+            
+            exportJSON() {
+                if (this.placedBricks.length === 0) return alert("Das Baufeld ist leer!");
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.placedBricks, null, 2));
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.setAttribute("href", dataStr);
+                downloadAnchor.setAttribute("download", "brickcraft_modell.json");
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+                SoundFX.play('click');
+            },
+
+            importJSON(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const parsed = JSON.parse(e.target.result);
+                        if (Array.isArray(parsed)) {
+                            this.placedBricks.forEach(b => Engine3D.remove(b.uuid));
+                            this.placedBricks = parsed;
+                            this.placedBricks.forEach(b => Engine3D.spawn(b));
+                            this.save();
+                            SoundFX.play('click');
+                        }
+                    } catch(err) {
+                        alert("Fehlerhafte Modelldatei.");
+                    }
+                };
+                reader.readAsText(file);
+                event.target.value = '';
+            },
+
+            save() {
+                if (this.historyIdx < this.history.length - 1) {
+                    this.history = this.history.slice(0, this.historyIdx + 1);
+                }
+                this.history.push(JSON.stringify(this.placedBricks)); 
+                this.historyIdx++;
+            },
+            
+            undo() { 
+                if (this.historyIdx > 0) { 
+                    this.historyIdx--; 
+                    this.loadHistory(); 
+                } 
+            },
+            
+            redo() { 
+                if (this.historyIdx < this.history.length - 1) { 
+                    this.historyIdx++; 
+                    this.loadHistory(); 
+                } 
+            },
+            
+            loadHistory() { 
+                this.placedBricks.forEach(b => Engine3D.remove(b.uuid)); 
+                this.placedBricks = JSON.parse(this.history[this.historyIdx]); 
+                this.placedBricks.forEach(b => Engine3D.spawn(b)); 
+            },
+            
+            clearScene() { 
+                if (confirm("Möchtest du das Baufeld komplett leeren?")) { 
+                    this.placedBricks.forEach(b => Engine3D.remove(b.uuid)); 
+                    this.placedBricks = []; 
+                    this.save(); 
+                } 
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => App.init());
+        
+      
+         
+  // <-- HIER KÖNNEN EXTENSIONS NUN WIE GEHABT PROBLEM_LOS ANGEHÄNGT WERDEN -->
+
+// =========================================================================
+// BRICKCRAFT STUDIO - ADVANCED SPECIAL COMPONENTS EXTENSION (SOTA 2026)
+// =========================================================================
+
+(function() {
+    console.log("📦 Injecting Advanced Component Extension...");
+
+    // 1. NEUE THEMEN-KATEGORIEN REGISTRIEREN
+    Object.assign(Registry.categories, {
+        'city': '🏠 Stadt',
+        'scifi': '🤖 Zukunft',
+        'creatures': '🦄 Wesen',
+        'adventure': '🤠 Explorer'
+    });
+
+    // 2. MASSIG EXKLUSIVE SONDERBAUTEILE DEFINIEREN
+    const extendedBricks = {
+        // --- KATEGORIE: STADT & HAUS ---
+        's_window_2x2': { name: 'Fenster-Rahmen 2x2', size: [2, 2, 1], category: 'city', shape: 'window' },
+        's_pyramid_2x2': { name: 'Dach-Pyramide 2x2', size: [2, 2, 1.5], category: 'city', shape: 'pyramid' },
+        's_fence_picket': { name: 'Lattenzaun 1x4', size: [1, 4, 1], category: 'city', shape: 'fence_picket' },
+        
+        // --- KATEGORIE: ZUKUNFT & SCI-FI ---
+        's_laser_cannon': { name: 'Laser-Kanone', size: [1, 2, 1], category: 'scifi', shape: 'cannon' },
+        's_ufo_top': { name: 'UFO-Kuppel 3x3', size: [3, 3, 0.8], category: 'scifi', shape: 'ufo' },
+        's_propeller': { name: 'Rotor-Flügel', size: [1, 1, 0.5], category: 'scifi', shape: 'propeller' },
+
+        // --- KATEGORIE: FABELWESEN ---
+        's_eye_big': { name: 'Glotz-Auge 1x1', size: [1, 1, 1], category: 'creatures', shape: 'eye' },
+        's_horn_unicorn': { name: 'Zauber-Horn', size: [1, 1, 2], category: 'creatures', shape: 'horn' },
+        's_wing_curved': { name: 'Schwung-Flügel', size: [1, 3, 1.5], category: 'creatures', shape: 'wing_curved' },
+
+        // --- KATEGORIE: ABENTEUER & EXPEDITION ---
+        's_gem_giant': { name: 'Riesen-Edelstein', size: [1, 1, 1.2], category: 'adventure', shape: 'gem' },
+        's_spikes': { name: 'Boden-Stacheln', size: [1, 1, 0.8], category: 'adventure', shape: 'spikes' },
+        's_totem_mask': { name: 'Mystische Maske', size: [1, 2, 1.5], category: 'adventure', shape: 'totem' }
+    };
+    Object.assign(Registry.bricks, extendedBricks);
+
+    // 3. PROZEDURALE GEOMETRIE-FABRIK ERWEITERN (INTELLIGENTER HOOK)
+    const baseFactory = GeometryFactory.create;
+    GeometryFactory.create = function(brickId) {
+        const config = Registry.bricks[brickId];
+        if (!config || ['box', 'slope', 'cylinder', 'cone', 'arch', 'wheel', 'crenel', 'stairs', 'leaf', 'flower', 'crystal', 'sphere'].includes(config.shape)) {
+            return baseFactory(brickId); // Nutze alten Core, falls Standardform
+        }
+
+        const w = config.size[0] * App.spatialUnit;
+        const l = config.size[1] * App.spatialUnit;
+        const h = config.size[2] * App.spatialHeight;
+        const group = new THREE.Group();
+        let geo;
+
+        // Erzeuge hochkomplexe, zusammengesetzte Geometrien (Meshes müssen direkt ins Haupt-Group)
+        switch(config.shape) {
+            case 'window': // Hohler Fensterrahmen aus 4 Segmenten built-in
+                const t = 0.12; 
+                const frameBottom = new THREE.Mesh(new THREE.BoxGeometry(w, h * t, l)); frameBottom.position.set(0, (h * t)/2, 0); group.add(frameBottom);
+                const frameTop = new THREE.Mesh(new THREE.BoxGeometry(w, h * t, l)); frameTop.position.set(0, h - (h * t)/2, 0); group.add(frameTop);
+                const frameLeft = new THREE.Mesh(new THREE.BoxGeometry(w * t, h * (1 - 2*t), l)); frameLeft.position.set(-w/2 + (w * t)/2, h/2, 0); group.add(frameLeft);
+                const frameRight = new THREE.Mesh(new THREE.BoxGeometry(w * t, h * (1 - 2*t), l)); frameRight.position.set(w/2 - (w * t)/2, h/2, 0); group.add(frameRight);
+                break;
+
+            case 'pyramid': // 4-seitige spitze Pyramide
+                geo = new THREE.ConeGeometry(w * 0.7, h, 4);
+                geo.rotateY(Math.PI / 4); geo.translate(0, h/2, 0);
+                group.add(new THREE.Mesh(geo));
+                break;
+
+            case 'fence_picket': // Ein klassischer Lattenzaun
+                const rail = new THREE.Mesh(new THREE.BoxGeometry(w * 0.4, h * 0.12, l)); rail.position.set(0, h * 0.5, 0); group.add(rail);
+                const pickets = 5;
+                for(let i = 0; i < pickets; i++) {
+                    const picket = new THREE.Mesh(new THREE.BoxGeometry(w * 0.6, h * 0.9, l * 0.12));
+                    picket.position.set(0, h * 0.45, -l/2 + (l / (pickets - 1)) * i);
+                    group.add(picket);
+                }
+                break;
+
+            case 'cannon': // Science-Fiction Laser-Kanone
+                const blockBase = new THREE.Mesh(new THREE.BoxGeometry(w, h*0.4, l*0.6)); blockBase.position.set(0, (h*0.4)/2, 0); group.add(blockBase);
+                const pipe = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.2, w * 0.2, l * 1.3, 16)); pipe.rotation.x = Math.PI / 2; pipe.position.set(0, h * 0.6, 0); group.add(pipe);
+                break;
+
+            case 'ufo': // Abgeflachte Raumschiff-Unterseite
+                geo = new THREE.CylinderGeometry(w * 0.5, w * 0.2, h, 32); geo.translate(0, h/2, 0);
+                group.add(new THREE.Mesh(geo));
+                break;
+
+            case 'propeller': // Rotierende Luft-Rotorblätter
+                const axis = new THREE.Mesh(new THREE.CylinderGeometry(w*0.2, w*0.2, h, 12)); axis.position.set(0, h/2, 0); group.add(axis);
+                const blade = new THREE.Mesh(new THREE.BoxGeometry(w * 3.5, h * 0.15, l * 0.25)); blade.position.set(0, h - (h*0.15)/2, 0); group.add(blade);
+                break;
+
+            case 'eye': // Auge bestehend aus Augapfel und Pupille
+                const eyeball = new THREE.Mesh(new THREE.SphereGeometry(w * 0.45, 18, 18)); eyeball.position.set(0, h/2, 0); group.add(eyeball);
+                const pupil = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.18, w * 0.18, 0.04, 16)); pupil.rotation.x = Math.PI / 2; pupil.position.set(0, h/2, l * 0.42); group.add(pupil);
+                break;
+
+            case 'horn': // Gedrehtes, spitz zulaufendes Horn
+                geo = new THREE.ConeGeometry(w * 0.3, h, 16); geo.rotateX(0.15); geo.translate(0, h/2, 0);
+                group.add(new THREE.Mesh(geo));
+                break;
+
+            case 'wing_curved': // Organisch geschwungener Flügel
+                for(let i=0; i<3; i++) {
+                    const feather = new THREE.Mesh(new THREE.BoxGeometry(w, h * 0.25, l * (1 - i*0.25)));
+                    feather.position.set(0, h * 0.2 + (i * h * 0.25), -l/4 + (i * l * 0.12));
+                    feather.rotation.z = 0.2 * (i + 1);
+                    group.add(feather);
+                }
+                break;
+
+            case 'gem': // Doppelkegel-Edelstein (Kristall-Shape)
+                const topCone = new THREE.Mesh(new THREE.ConeGeometry(w * 0.45, h * 0.5, 8)); topCone.position.set(0, h * 0.75, 0); group.add(topCone);
+                const btmCone = new THREE.Mesh(new THREE.ConeGeometry(w * 0.45, h * 0.5, 8)); btmCone.rotation.x = Math.PI; btmCone.position.set(0, h * 0.25, 0); group.add(btmCone);
+                break;
+
+            case 'spikes': // Gefährliche Fallen-Stacheln
+                for(let x = -0.25; x <= 0.25; x += 0.5) {
+                    for(let z = -0.25; z <= 0.25; z += 0.5) {
+                        const spike = new THREE.Mesh(new THREE.ConeGeometry(w * 0.15, h, 8));
+                        spike.position.set(x * w, h/2, z * l);
+                        group.add(spike);
+                    }
+                }
+                break;
+
+            case 'totem': // Masken-Platte mit Sehschlitzen
+                const face = new THREE.Mesh(new THREE.BoxGeometry(w * 0.9, h, l * 0.4)); face.position.set(0, h/2, 0); group.add(face);
+                const nose = new THREE.Mesh(new THREE.ConeGeometry(w * 0.15, h * 0.4, 4)); nose.position.set(0, h * 0.45, l * 0.25); group.add(nose);
+                break;
+        }
+
+        // Automatische Noppen auf der Oberseite der Sonderteile platzieren (falls flach genug)
+        if (!['pyramid', 'horn', 'gem', 'propeller'].includes(config.shape)) {
+            const studGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12); studGeo.translate(0, 0.04, 0);
+            const stud = new THREE.Mesh(studGeo); stud.position.set(0, h, 0); group.add(stud);
+        }
+
+        return group;
+    };
+
+    // 4. NEUE SUPER-BLUEPRINTS EINSPEISEN
+    if (window.BlueprintManager) {
+        BlueprintManager.blueprints['ufo_ship'] = {
+            name: '🛸 Alien-UFO',
+            blocks: [
+                { type: 's_ufo_top', color: 'dark_iron', pos: [0, 0, 0], rot: 0 },
+                { type: 'sp_cockpit', color: 'trans_ruby', pos: [0, 0.8, 0], rot: 0 },
+                { type: 's_laser_cannon', color: 'green', pos: [0, -0.6, 0], rot: 0 },
+                { type: 'sp_thruster', color: 'orange', pos: [0, -1.2, 0], rot: 0 }
+            ]
+        };
+        BlueprintManager.blueprints['fantasy_creature'] = {
+            name: '🦄 Einhorn-Kopf',
+            blocks: [
+                { type: 'b22', color: 'white', pos: [0, 0, 0], rot: 0 },
+                { type: 'b12', color: 'white', pos: [0, 1.2, 0.5], rot: 0 },
+                { type: 's_eye_big', color: 'blue', pos: [0.4, 1.2, 0.8], rot: 0 },
+                { type: 's_eye_big', color: 'blue', pos: [-0.4, 1.2, 0.8], rot: 0 },
+                { type: 's_horn_unicorn', color: 'gold', pos: [0, 2.4, 0.8], rot: 0 }
+            ]
+        };
+        
+        // UI-Neuaufbau triggern, um Vorlagen sofort anzuzeigen
+        BlueprintManager.init();
+    }
+
+    // Refresh UI-Kacheln für die neuen Kategorien
+    if (window.UIManager) {
+        UIManager.init();
+    }
+
+    console.log("💚 Advanced Special Components Package loaded successfully!");
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - EXTRA CORE EXTENSION Pack (SAVE, ENVIRONMENT & SONDERTEILE)
+// =========================================================================
+
+(function() {
+    console.log("⚙️ Initialisiere Core-Erweiterungspack...");
+
+    // 1. TYPISCHE, KLASSISCHE LEGO-SONDERTEILE REGISTRIEREN (ALLES UNTER "EXTRAS")
+    const classicLegoSpecials = {
+        's_grill_tile': { name: 'Gitter-Fliese 1x2', size: [1, 2, 0.33], category: 'special', shape: 'grill' },
+        's_lego_lever': { name: 'Schalthäbel / Antenne', size: [1, 1, 1.5], category: 'special', shape: 'lever' },
+        's_steering_wheel': { name: 'Lenkrad-Konsole', size: [1, 1, 0.8], category: 'special', shape: 'steering_wheel' },
+        's_headlight_brick': { name: 'Erni-Winkelstein 1x1', size: [1, 1, 1], category: 'special', shape: 'headlight' },
+        's_technic_brick': { name: 'Technic Lochstein 1x2', size: [1, 2, 1], category: 'special', shape: 'technic_hole' },
+        's_windshield_curved': { name: 'Cockpit-Glasscheibe', size: [2, 3, 1.3], category: 'special', shape: 'windshield' },
+        's_flat_round_2x2': { name: 'Runde Gleitfliese 2x2', size: [2, 2, 0.33], category: 'special', shape: 'round_flat' },
+        's_fence_classic': { name: 'Absperr-Gitter 1x4', size: [1, 4, 1], category: 'special', shape: 'classic_fence' }
+    };
+    Object.assign(Registry.bricks, classicLegoSpecials);
+
+    // 2. ERWEITERTE GEOMETRIE-FABRIK FÜR ECHTE LEGO-SHAPES
+    const previousCoreFactory = GeometryFactory.create;
+    GeometryFactory.create = function(brickId) {
+        const config = Registry.bricks[brickId];
+        if (!config || !['grill', 'lever', 'steering_wheel', 'headlight', 'technic_hole', 'windshield', 'round_flat', 'classic_fence'].includes(config.shape)) {
+            return previousCoreFactory(brickId);
+        }
+
+        const w = config.size[0] * App.spatialUnit;
+        const l = config.size[1] * App.spatialUnit;
+        const h = config.size[2] * App.spatialHeight;
+        const group = new THREE.Group();
+        let geo;
+
+        // Prozeduraler Nachbau echter Spritzguss-Teile
+        switch(config.shape) {
+            case 'grill': // Riffel-Fliese 1x2
+                const basePlate = new THREE.Mesh(new THREE.BoxGeometry(w - 0.03, h, l - 0.03)); basePlate.position.y = h/2; group.add(basePlate);
+                for(let i = -0.35; i <= 0.35; i += 0.18) {
+                    const ridge = new THREE.Mesh(new THREE.BoxGeometry(w * 0.8, 0.04, 0.06));
+                    ridge.position.set(0, h, i * l); group.add(ridge);
+                }
+                break;
+
+            case 'lever': // Steuerhebel
+                const baseBlock = new THREE.Mesh(new THREE.BoxGeometry(w*0.8, h*0.3, l*0.8)); baseBlock.position.y = (h*0.3)/2; group.add(baseBlock);
+                const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, h, 8)); stick.position.set(0, h/2, 0); stick.rotation.z = 0.3; group.add(stick);
+                const knob = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8)); knob.position.set(-0.15, h, 0); group.add(knob);
+                break;
+
+            case 'steering_wheel': // Klassisches Cockpit-Lenkrad
+                const consoleBase = new THREE.Mesh(new THREE.BoxGeometry(w, h*0.5, l)); consoleBase.position.y = (h*0.5)/2; group.add(consoleBase);
+                const wheelShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, h*0.6, 8)); wheelShaft.position.set(0, h*0.5, l*0.1); wheelShaft.rotation.x = 0.5; group.add(wheelShaft);
+                const wheelRing = new THREE.Mesh(new THREE.CylinderGeometry(w*0.3, w*0.3, 0.04, 12)); wheelRing.position.set(0, h*0.75, l*0.25); wheelRing.rotation.x = 0.5; group.add(wheelRing);
+                break;
+
+            case 'headlight': // Winkelstein mit Front-Noppe (SNOT)
+                const mainBox = new THREE.Mesh(new THREE.BoxGeometry(w - 0.03, h, l - 0.03)); mainBox.position.y = h/2; group.add(mainBox);
+                const frontStud = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12)); frontStud.rotation.x = Math.PI / 2; frontStud.position.set(0, h/2, l/2); group.add(frontStud);
+                break;
+
+            case 'technic_hole': // Stein mit Achs-Loch in der Mitte
+                const blockMesh = new THREE.Mesh(new THREE.BoxGeometry(w - 0.03, h, l - 0.03)); blockMesh.position.y = h/2; group.add(blockMesh);
+                const holeInner = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, w*1.1, 12)); holeInner.rotation.z = Math.PI / 2; holeInner.position.set(0, h/2, 0);
+                // Dunkler Fake-Inlay-Zylinder simuliert das Loch optisch tiefenwirksam
+                holeInner.material = new THREE.MeshBasicMaterial({ color: 0x1e293b }); group.add(holeInner);
+                break;
+
+            case 'windshield': // Schräge transparente Cockpitscheibe
+                const shape = new THREE.Shape(); shape.moveTo(-w/2, 0); shape.lineTo(w/2, 0); shape.lineTo(w/4, h); shape.lineTo(-w/4, h);
+                baseGeo = new THREE.ExtrudeGeometry(shape, { depth: l, bevelEnabled: false }); baseGeo.center(); baseGeo.translate(0, h/2, 0);
+                group.add(new THREE.Mesh(baseGeo));
+                break;
+
+            case 'round_flat': // Flache Rundfliese
+                baseGeo = new THREE.CylinderGeometry(w/2 - 0.02, w/2 - 0.02, h, 24); baseGeo.translate(0, h/2, 0);
+                group.add(new THREE.Mesh(baseGeo));
+                return group; // Fliesen brauchen keine Noppen oben drauf
+
+            case 'classic_fence': // Klassischer Schutzzaun
+                const bRail = new THREE.Mesh(new THREE.BoxGeometry(w*0.3, h*0.1, l)); bRail.position.set(0, h*0.15, 0); group.add(bRail);
+                const tRail = new THREE.Mesh(new THREE.BoxGeometry(w*0.3, h*0.1, l)); tRail.position.set(0, h*0.85, 0); group.add(tRail);
+                for(let p = -0.4; p <= 0.4; p += 0.26) {
+                    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, h*0.8, 8)); bar.position.set(0, h/2, p * l); group.add(bar);
+                }
+                break;
+        }
+
+        // Standard-Noppe oben drauf setzen (außer bei Scheiben und Hebeln)
+        if (!['windshield', 'lever', 'steering_wheel'].includes(config.shape)) {
+            const studGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12); studGeo.translate(0, 0.04, 0);
+            const stud = new THREE.Mesh(studGeo); stud.position.set(0, h, 0); group.add(stud);
+        }
+
+        return group;
+    };
+
+    // 3. PROZEDURALES GEBIETS- UND TEXTUREN-SYSTEM (WELTEN-GRID)
+    const EnvironmentSystem = {
+        styles: {
+            'default': { planeColor: 0xffffff, gridCenter: 0x6366f1, gridLines: 0xcbd5e1, bg: 0xf8fafc },
+            'grass':   { planeColor: 0x4ade80, gridCenter: 0x15803d, gridLines: 0x22c55e, bg: 0xf0fdf4 },
+            'water':   { planeColor: 0x38bdf8, gridCenter: 0x0369a1, gridLines: 0x0ea5e9, bg: 0xf0f9ff },
+            'street':  { planeColor: 0x475569, gridCenter: 0xfef08a, gridLines: 0x64748b, bg: 0xf8fafc }
+        },
+
+        initUI() {
+            // Kammer-Schnellwähler im 3D Feld finden & daneben die Texturen platzieren
+            const targetDiv = document.querySelector('main > div.absolute.top-4.right-4');
+            const envWrapper = document.createElement('div');
+            envWrapper.className = "flex bg-white/90 p-1 rounded-xl border border-slate-200 shadow-sm backdrop-blur mr-2";
+            envWrapper.innerHTML = `
+                <button onclick="EnvironmentSystem.change('default')" class="p-2 hover:bg-slate-100 rounded-lg text-sm cursor-pointer" title="Standard">⚪</button>
+                <button onclick="EnvironmentSystem.change('grass')" class="p-2 hover:bg-slate-100 rounded-lg text-sm cursor-pointer" title="Wiese">🌿</button>
+                <button onclick="EnvironmentSystem.change('water')" class="p-2 hover:bg-slate-100 rounded-lg text-sm cursor-pointer" title="Wasser">💧</button>
+                <button onclick="EnvironmentSystem.change('street')" class="p-2 hover:bg-slate-100 rounded-lg text-sm cursor-pointer" title="Straße">🛣️</button>
+            `;
+            targetDiv.parentNode.insertBefore(envWrapper, targetDiv);
+        },
+
+        change(styleKey) {
+            const s = this.styles[styleKey];
+            if (!s) return;
+
+            // 1. Spielflächenfarbe anpassen
+            Engine3D.plane.material.visible = (styleKey !== 'default');
+            if (Engine3D.plane.material.visible) {
+                Engine3D.plane.material.dispose();
+                Engine3D.plane.material = new THREE.MeshStandardMaterial({ 
+                    color: s.planeColor, 
+                    roughness: styleKey === 'water' ? 0.1 : 0.6,
+                    metalness: styleKey === 'water' ? 0.2 : 0.0
+                });
+            }
+
+            // 2. Grid-Hilfslinien farblich morphen
+            const currentGrid = Engine3D.scene.children.find(c => c.isGridHelper);
+            if (currentGrid) {
+                Engine3D.scene.remove(currentGrid);
+                currentGrid.geometry.dispose();
+                currentGrid.material.dispose();
+            }
+            
+            const newGrid = new THREE.GridHelper(App.playgroundSize, App.playgroundSize, s.gridCenter, s.gridLines);
+            newGrid.position.y = 0.005;
+            Engine3D.scene.add(newGrid);
+
+            // 3. Hintergrund-Atmosphäre updaten
+            Engine3D.scene.background.setHex(s.bg);
+            SoundFX.play('click');
+        }
+    };
+    window.EnvironmentSystem = EnvironmentSystem;
+    EnvironmentSystem.initUI();
+
+    // 4. MINIMALISTISCHES SPEICHERN & LADEN SYSTEM (LOCALSTORAGE SLOTS)
+    const SaveLoadSystem = {
+        initUI() {
+            // Füge Speicherknöpfe direkt in die TopBar neben dem Papierkorb ein
+            const toolContainer = document.querySelector('header > div.flex.items-center.space-x-3');
+            const divider = document.createElement('div'); divider.className = "h-6 w-[1px] bg-slate-200 mx-1";
+            
+        },
+
+        saveToBrowser() {
+            if (App.placedBricks.length === 0) return;
+            localStorage.setItem('brickcraft_kid_save', JSON.stringify(App.placedBricks));
+            
+            // Minimalistischer Erfolgs-Flash-Effekt auf dem Speicherknopf
+            SoundFX.play('click');
+            alert("Dein Kunstwerk wurde sicher gemerkt! 🌟");
+        },
+
+        loadFromBrowser() {
+            const savedData = localStorage.getItem('brickcraft_kid_save');
+            if (!savedData) return alert("Du hast noch kein Modell im Speicher! Bau erst etwas Tolles.");
+
+            if (App.placedBricks.length > 0 && !confirm("Möchtest du dein aktuelles Modell durch das geladene ersetzen?")) return;
+
+            // Altes Feld vaporisieren
+            App.placedBricks.forEach(b => Engine3D.remove(b.uuid));
+            
+            // Neues Feld einspeisen
+            App.placedBricks = JSON.parse(savedData);
+            App.placedBricks.forEach(b => Engine3D.spawn(b));
+            
+            App.save(); // Undo/Redo Verlauf aktualisieren
+            SoundFX.play('click');
+        }
+    };
+    SaveLoadSystem.initUI();
+
+    // UI-Refresh für die neu injizierten Sonderteile erzwingen
+    UIManager.renderBricks('special');
+    console.log("💚 Extension erfolgreich aktiv geschaltet. Bereit zum Spielen!");
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - GENUINE LEGO SPECIAL COMPONENTS PACK (SOTA 2026)
+// =========================================================================
+
+(function() {
+    console.log("🧩 Injektion der echten Lego-Spezialteile läuft...");
+
+    // 1. TYPISCHE LEGO-SOUVENIRS REINGELADEN (ALLES IN DIE KATEGORIE "SPECIAL" / EXTRAS)
+    const legoIconicSpecials = {
+        's_lego_chair': { name: 'Minifiguren-Sitz 2x2', size: [2, 2, 0.8], category: 'special', shape: 'lego_chair' },
+        's_mudguard_car': { name: 'Auto-Kotflügel 1x2', size: [1, 2, 1], category: 'special', shape: 'mudguard' },
+        's_turntable_2x2': { name: 'Drehplatte 2x2', size: [2, 2, 0.5], category: 'special', shape: 'turntable' },
+        's_round_brick_2x2': { name: 'Rund-Baustein 2x2', size: [2, 2, 1], category: 'special', shape: 'round_block' },
+        's_radar_dish': { name: 'Satelliten-Schüssel 3x3', size: [3, 3, 0.8], category: 'special', shape: 'radar_dish' },
+        's_slope_inverted': { name: 'Negativ-Dachstein 1x2', size: [1, 2, 1], category: 'special', shape: 'inverted_slope' },
+        's_smooth_tile_2x2': { name: 'Glatte Kachel 2x2', size: [2, 2, 0.33], category: 'special', shape: 'smooth_tile' }
+    };
+    Object.assign(Registry.bricks, legoIconicSpecials);
+
+    // 2. ERWEITERUNG DER 3D-GEOMETRIE-PIPELINE (INTERCEPTOR)
+    const previousExtensionFactory = GeometryFactory.create;
+    GeometryFactory.create = function(brickId) {
+        const config = Registry.bricks[brickId];
+        if (!config || !['lego_chair', 'mudguard', 'turntable', 'round_block', 'radar_dish', 'inverted_slope', 'smooth_tile'].includes(config.shape)) {
+            return previousExtensionFactory(brickId); // Fallback auf ältere Fabrik-Stufen
+        }
+
+        const w = config.size[0] * App.spatialUnit;
+        const l = config.size[1] * App.spatialUnit;
+        const h = config.size[2] * App.spatialHeight;
+        const group = new THREE.Group();
+        let geo;
+
+        // Prozedurale Modellierung der legendären Plastikformen
+        switch(config.shape) {
+            case 'lego_chair': // Legendärer Schalensitz für Spielfiguren
+                const seatBase = new THREE.Mesh(new THREE.BoxGeometry(w, h * 0.4, l)); seatBase.position.y = (h * 0.4)/2; group.add(seatBase);
+                const backrest = new THREE.Mesh(new THREE.BoxGeometry(w, h * 1.2, l * 0.2)); backrest.position.set(0, h * 0.4 + (h * 1.2)/2, -l/2 + (l * 0.1)); group.add(backrest);
+                const armrestL = new THREE.Mesh(new THREE.BoxGeometry(w * 0.15, h * 0.5, l * 0.6)); armrestL.position.set(-w/2 + (w * 0.075), h * 0.4 + (h * 0.25), l * 0.1); group.add(armrestL);
+                const armrestR = new THREE.Mesh(new THREE.BoxGeometry(w * 0.15, h * 0.5, l * 0.6)); armrestR.position.set(w/2 - (w * 0.075), h * 0.4 + (h * 0.25), l * 0.1); group.add(armrestR);
+                break;
+
+            case 'mudguard': // Kotflügel für Radläufe
+                const topPlate = new THREE.Mesh(new THREE.BoxGeometry(w, h * 0.2, l)); topPlate.position.y = h - (h * 0.2)/2; group.add(topPlate);
+                const frontWall = new THREE.Mesh(new THREE.BoxGeometry(w, h * 0.8, l * 0.2)); frontWall.position.set(0, (h * 0.8)/2, -l/2 + (l * 0.1)); group.add(frontWall);
+                const backWall = new THREE.Mesh(new THREE.BoxGeometry(w, h * 0.8, l * 0.2)); backWall.position.set(0, (h * 0.8)/2, l/2 - (l * 0.1)); group.add(backWall);
+                break;
+
+            case 'turntable': // Quadratische Unterplatte mit rundem Drehteller
+                const lowerSquare = new THREE.Mesh(new THREE.BoxGeometry(w, h * 0.5, l)); lowerSquare.position.y = (h * 0.5)/2; group.add(lowerSquare);
+                const upperCircle = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.42, w * 0.42, h * 0.5, 24)); upperCircle.position.y = h * 0.5 + (h * 0.5)/2; group.add(upperCircle);
+                break;
+
+            case 'round_block': // Klassischer runder 2x2 Zylinderstein
+                geo = new THREE.CylinderGeometry(w/2 - 0.01, w/2 - 0.01, h, 28); geo.translate(0, h/2, 0);
+                group.add(new THREE.Mesh(geo));
+                break;
+
+            case 'radar_dish': // Hohlspiegel-Satellitenschüssel (Classic Space Ära)
+                const centerPin = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.1, w * 0.1, h * 0.5, 8)); centerPin.position.y = (h * 0.5)/2; group.add(centerPin);
+                geo = new THREE.CylinderGeometry(w/2, w * 0.15, h * 0.7, 30, 1, true); geo.translate(0, h * 0.35 + h * 0.3, 0);
+                group.add(new THREE.Mesh(geo));
+                break;
+
+            case 'inverted_slope': // Kopfüber hängender Negativ-Winkelstein (z.B. für Schiffsrümpfe)
+                const invShape = new THREE.Shape(); invShape.moveTo(-w/2, 0); invShape.lineTo(w/2, 0); invShape.lineTo(w/2, h); invShape.lineTo(-w/2 + (w * 0.7), h); invShape.lineTo(-w/2, 0);
+                geo = new THREE.ExtrudeGeometry(invShape, { depth: l, bevelEnabled: false }); geo.center(); geo.translate(0, h/2, 0);
+                group.add(new THREE.Mesh(geo));
+                break;
+
+            case 'smooth_tile': // Komplett glatte Noppenlos-Platte
+                geo = new THREE.BoxGeometry(w - 0.03, h, l - 0.03); geo.translate(0, h/2, 0);
+                group.add(new THREE.Mesh(geo));
+                return group; // Beendet sofort, da Fliesen absolut glatt sein müssen
+        }
+
+        // 3. NOCH NOPPEN (STUDS) OBEN AUF DIE SONDERTEILE SETZEN
+        // Mathematische Verteilung je nach Bauteil-Grundfläche
+        if (config.shape === 'round_block' || config.shape === 'turntable') {
+            // Zentrierte 2x2 Noppen-Struktur für runde Körper
+            const sRadius = 0.16, sHeight = 0.08;
+            const studG = new THREE.CylinderGeometry(sRadius, sRadius, sHeight, 12); studG.translate(0, sHeight/2, 0);
+            const offsets = [-0.25, 0.25];
+            offsets.forEach(x => {
+                offsets.forEach(z => {
+                    const st = new THREE.Mesh(studG);
+                    st.position.set(x * w, h, z * l); group.add(st);
+                });
+            });
+        } else if (!['radar_dish', 'lego_chair'].includes(config.shape)) {
+            // Einzelne zentrale Noppen-Fixierung für kleinere Extras
+            const studGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12); studGeo.translate(0, 0.04, 0);
+            const singleStud = new THREE.Mesh(studGeo); singleStud.position.set(0, h, 0); group.add(singleStud);
+        }
+
+        return group;
+    };
+
+    // 4. ECHTES LEGO-VORLAGEN-PRESET AKTUALISIEREN
+    if (window.BlueprintManager) {
+        BlueprintManager.blueprints['lego_car'] = {
+            name: '🏎️ Kleines Auto',
+            blocks: [
+                { type: 'b24', color: 'blue', pos: [0, 0, 0], rot: 0 },
+                { type: 's_mudguard_car', color: 'white', pos: [0, 0, 1], rot: 0 },
+                { type: 's_mudguard_car', color: 'white', pos: [0, 0, -1], rot: 0 },
+                { type: 's_lego_chair', color: 'red', pos: [0, 1.2, 0], rot: 0 },
+                { type: 's_smooth_tile_2x2', color: 'yellow', pos: [0, 1.2, -1], rot: 0 }
+            ]
+        };
+        // Re-Initialisierung der Vorlagenleiste im rechten Panel
+        BlueprintManager.init();
+    }
+
+    // Refresh der UI-Kacheln, damit die neuen Steine sofort geladen sind
+    if (window.UIManager) {
+        UIManager.renderBricks('special');
+    }
+
+    console.log("💚 Lego-Klassiker-Erweiterung erfolgreich ins 'Extras'-Menü integriert!");
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - KEYBOARD HOTKEYS EXTENSION (UNDO / REDO VERLAUF)
+// =========================================================================
+
+(function() {
+    console.log("⌨️ Aktiviere Tastatur-Schnelltasten [Z] (Undo) und [V] (Redo)...");
+
+    // 1. EVENT-LISTENER FÜR DIE VERLAUFS-STEUERUNG
+    window.addEventListener('keydown', (event) => {
+        const key = event.key.toLowerCase();
+
+        if (key === 'z') {
+            App.undo();
+        } else if (key === 'v') {
+            App.redo();
+        }
+    });
+
+    // 2. MINIMALISTISCHE TASTEN-INFO IM RECHTEN MENÜ AKTUALISIEREN
+    const blueprintArea = document.getElementById('blueprint-area');
+    if (blueprintArea) {
+        // Falls noch eine alte Infobox existiert, nehmen wir sie weg
+        const oldInfo = document.getElementById('hotkey-info-box');
+        if (oldInfo) oldInfo.remove();
+
+        const infoDiv = document.createElement('div');
+        infoDiv.id = 'hotkey-info-box';
+        infoDiv.className = "mt-3 pt-2 border-t border-slate-200 text-[11px] text-slate-400 font-medium space-y-1";
+        infoDiv.innerHTML = `
+            <div class="flex justify-between"><span>⚙️ Baustein drehen:</span><kbd class="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300 text-slate-600 font-bold">R</kbd></div>
+            <div class="flex justify-between"><span>↩️ Schritt zurück:</span><kbd class="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300 text-slate-600 font-bold">Z</kbd></div>
+            <div class="flex justify-between"><span>⏩ Schritt vorwärts:</span><kbd class="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300 text-slate-600 font-bold">V</kbd></div>
+        `;
+        blueprintArea.appendChild(infoDiv);
+    }
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - MEGA CASTLE & KNIGHTS EXTENSION PACK (SOTA 2026)
+// =========================================================================
+
+(function() {
+    console.log("🏰 Schmiede das Mega Ritter-Pack im Burggraben...");
+
+    // 1. NEUE SONDERBAUTEILE FÜR DIE KATEGORIE "CASTLE" REGISTRIEREN
+    const castleSpecialBricks = {
+        'ca_drawbridge': { name: 'Burg-Zugbrücke 1x4x3', size: [1, 4, 3], category: 'castle', shape: 'drawbridge' },
+        'ca_arrow_slit': { name: 'Schießscharten-Wand', size: [1, 3, 2], category: 'castle', shape: 'arrow_slit' },
+        'ca_window_bars': { name: 'Eisengitter-Fenster', size: [1, 2, 2], category: 'castle', shape: 'window_bars' },
+        'ca_flag_knights': { name: 'Ritter-Banner / Fahne', size: [1, 1, 3], category: 'castle', shape: 'castle_flag' },
+        'ca_wall_shield': { name: 'Wappen-Schild 1x1', size: [1, 1, 1], category: 'castle', shape: 'castle_shield' },
+        'ca_wall_torch': { name: 'Wandfackel mit Flamme', size: [1, 1, 1], category: 'castle', shape: 'castle_torch' },
+        'ca_roof_cone_large': { name: 'Großes Turmdach 3x3', size: [3, 3, 2], category: 'castle', shape: 'cone_roof_large' }
+    };
+    Object.assign(Registry.bricks, castleSpecialBricks);
+
+    // 2. ERWEITERUNG DER 3D-GEOMETRIE-FABRIK (INTERCEPTOR FOR CASTLE SHAPES)
+    const priorFactoryStage = GeometryFactory.create;
+    GeometryFactory.create = function(brickId) {
+        const config = Registry.bricks[brickId];
+        if (!config || !['drawbridge', 'arrow_slit', 'window_bars', 'castle_flag', 'castle_shield', 'castle_torch', 'cone_roof_large'].includes(config.shape)) {
+            return priorFactoryStage(brickId); // Fallback auf ältere Stufen
+        }
+
+        const w = config.size[0] * App.spatialUnit;
+        const l = config.size[1] * App.spatialUnit;
+        const h = config.size[2] * App.spatialHeight;
+        const group = new THREE.Group();
+        let geo;
+
+        // Prozedurale Berechnung authentischer Festungsgeometrien
+        switch(config.shape) {
+            case 'drawbridge': // Herunterklappbare Zugbrückenplatte mit seitlichen Halteketten
+                const plate = new THREE.Mesh(new THREE.BoxGeometry(w, h * 0.1, l)); plate.position.y = (h * 0.1)/2; group.add(plate);
+                // Zwei feine Halteketten (Zylinder) simulieren die Mechanik
+                const chainL = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, h * 1.1, 6)); chainL.position.set(-w/2 + 0.05, h * 0.5, l/2 - 0.2); chainL.rotation.x = -0.4; group.add(chainL);
+                const chainR = chainL.clone(); chainR.position.x = w/2 - 0.05; group.add(chainR);
+                break;
+
+            case 'arrow_slit': // Massive Steinmauer bestehend aus zwei Pfeilern und einer Schießscharte in der Mitte
+                const pillarL = new THREE.Mesh(new THREE.BoxGeometry(w, h, l * 0.4)); pillarL.position.set(0, h/2, -l/2 + (l * 0.2)); group.add(pillarL);
+                const pillarR = new THREE.Mesh(new THREE.BoxGeometry(w, h, l * 0.4)); pillarR.position.set(0, h/2, l/2 - (l * 0.4)/2); group.add(pillarR);
+                const lintel = new THREE.Mesh(new THREE.BoxGeometry(w, h * 0.25, l * 0.2)); lintel.position.set(0, h - (h * 0.25)/2, 0); group.add(lintel);
+                break;
+
+            case 'window_bars': // Hohler Fensterrahmen durchbrochen mit vertikalen Eisenstäben
+                const thick = 0.12;
+                const fBm = new THREE.Mesh(new THREE.BoxGeometry(w, h * thick, l)); fBm.position.set(0, (h * thick)/2, 0); group.add(fBm);
+                const fTp = new THREE.Mesh(new THREE.BoxGeometry(w, h * thick, l)); fTp.position.set(0, h - (h * thick)/2, 0); group.add(fTp);
+                const fLf = new THREE.Mesh(new THREE.BoxGeometry(w * thick, h * (1 - 2*thick), l)); fLf.position.set(-w/2 + (w * thick)/2, h/2, 0); group.add(fLf);
+                const fRg = new THREE.Mesh(new THREE.BoxGeometry(w * thick, h * (1 - 2*thick), l)); fRg.position.set(w/2 - (w * thick)/2, h/2, 0); group.add(fRg);
+                // Vertikale Gitterstäbe einsetzen
+                for (let i = -0.25; i <= 0.25; i += 0.5) {
+                    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, h * (1 - 2*thick), 8));
+                    bar.position.set(0, h/2, i * l); group.add(bar);
+                }
+                break;
+
+            case 'castle_flag': // Hoher Fahnenmast mit wehendem Stoffbanner
+                const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, h * 1.3, 8)); mast.position.set(-w/2 + 0.1, (h * 1.3)/2, 0); group.add(mast);
+                const cloth = new THREE.Mesh(new THREE.BoxGeometry(w * 0.8, h * 0.4, 0.04)); cloth.position.set(0.1, h * 1.0, 0); group.add(cloth);
+                break;
+
+            case 'castle_shield': // Klassischer, spitz zulaufender Wappenschild an der Mauer
+                const sShape = new THREE.Shape(); sShape.moveTo(0, h/2); sShape.lineTo(w/2, h/2); sShape.quadraticCurveTo(w/2, -h/4, 0, -h/2); sShape.quadraticCurveTo(-w/2, -h/4, -w/2, h/2); sShape.lineTo(0, h/2);
+                geo = new THREE.ExtrudeGeometry(sShape, { depth: l * 0.15, bevelEnabled: false }); geo.center(); geo.translate(0, h/2, 0);
+                group.add(new THREE.Mesh(geo));
+                break;
+
+            case 'castle_torch': // Abgewinkelter Holzgriff mit leuchtend oranger Feuerflamme
+                const holder = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.02, h * 0.5, 8)); holder.position.set(0, h * 0.25, l * 0.2); holder.rotation.x = 0.3; group.add(holder);
+                const fire = new THREE.Mesh(new THREE.ConeGeometry(w * 0.18, h * 0.35, 8)); fire.position.set(0, h * 0.55, l * 0.3); group.add(fire);
+                break;
+
+            case 'cone_roof_large': // Großes kegelförmiges Riesen-Turmdach für Festungstürme
+                geo = new THREE.ConeGeometry(w/2, h, 32); geo.translate(0, h/2, 0);
+                group.add(new THREE.Mesh(geo));
+                break;
+        }
+
+        // 3. LEGO-STUDS AUTOMATISCH AUF DIE BURGTEILE POSITIONIEREN
+        if (!['cone_roof_large', 'castle_flag', 'castle_torch'].includes(config.shape)) {
+            const studG = new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12); studG.translate(0, 0.04, 0);
+            const stud = new THREE.Mesh(studG); stud.position.set(0, h, 0); group.add(stud);
+        }
+
+        return group;
+    };
+
+    // 4. PROFESSIONELLES RITTERBURGS-PRESET AKTUALISIEREN (BLUEPRINTS)
+    if (window.BlueprintManager) {
+        BlueprintManager.blueprints['knights_outpost'] = {
+            name: '🏰 Ritter-Wachturm',
+            blocks: [
+                { type: 'ca_tower_round', color: 'dark_iron', pos: [0, 0, 0], rot: 0 },
+                { type: 'ca_window_bars', color: 'dark_iron', pos: [0, 3.6, 0], rot: 0 },
+                { type: 'ca_crenel', color: 'red', pos: [0, 7.2, 0], rot: 0 },
+                { type: 'ca_roof_cone_large', color: 'red', pos: [0, 8.4, 0], rot: 0 },
+                { type: 'ca_wall_torch', color: 'orange', pos: [0, 2.4, 1.0], rot: 0 },
+                { type: 'ca_flag_knights', color: 'blue', pos: [0, 10.8, 0], rot: 0 }
+            ]
+        };
+        // Bauvorlagenleiste im rechten UI-Panel neu zeichnen
+        BlueprintManager.init();
+    }
+
+    // Refresh der UI-Kacheln erzwingen, falls der Nutzer gerade im Burg-Reiter steht
+    if (window.UIManager) {
+        UIManager.renderBricks('castle');
+    }
+
+    console.log("💚 Mega Ritterburg-Pack vollständig geladen und einsatzbereit!");
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - EXTRA STANDARD BRICKS EXTENSION (PERFECT SNAP 2026)
+// =========================================================================
+
+(function() {
+    console.log("🧱 Befülle die normale Bausteinkiste mit neuen Größen...");
+
+    // 1. NEUE SIZES & SPEZIAL-FORMEN FÜR DIE KATEGORIE "STANDARD" REGISTRIEREN
+    const newStandardBricks = {
+        'b13': { name: 'Stein 1x3', size: [1, 3, 1], category: 'standard', shape: 'box' },
+        'b14': { name: 'Stein 1x4', size: [1, 4, 1], category: 'standard', shape: 'box' },
+        'b16': { name: 'Langer Stein 1x6', size: [1, 6, 1], category: 'standard', shape: 'box' },
+        'b23': { name: 'Baustein 2x3', size: [2, 3, 1], category: 'standard', shape: 'box' },
+        'b26': { name: 'Riesen-Block 2x6', size: [2, 6, 1], category: 'standard', shape: 'box' },
+        'b11x3': { name: 'Hohe Säule 1x1x3', size: [1, 1, 3], category: 'standard', shape: 'box' },
+        
+        // Komplexe Standard-Formen
+        'b22_corner': { name: 'Eck-Baustein 2x2', size: [2, 2, 1], category: 'standard', shape: 'corner_box' },
+        'b12_profile': { name: 'Mauerstein 1x2', size: [1, 2, 1], category: 'standard', shape: 'profile_box' }
+    };
+    Object.assign(Registry.bricks, newStandardBricks);
+
+    // 2. ERWEITERUNG DER GEOMETRIE-FABRIK FÜR SPEZIAL-PROFILE
+    const previousFactoryLayer = GeometryFactory.create;
+    GeometryFactory.create = function(brickId) {
+        const config = Registry.bricks[brickId];
+        if (!config || !['corner_box', 'profile_box'].includes(config.shape)) {
+            return previousFactoryLayer(brickId); // Nutzt automatischen Box-Generator für b13, b14, b16 etc.
+        }
+
+        const w = config.size[0] * App.spatialUnit;
+        const l = config.size[1] * App.spatialUnit;
+        const h = config.size[2] * App.spatialHeight;
+        const group = new THREE.Group();
+        let geo;
+
+        switch(config.shape) {
+            case 'corner_box': // Legendärer L-förmiger Eckbaustein
+                const cornerShape = new THREE.Shape();
+                // Zeichnet ein perfektes L-Profil im 2x2 Raster
+                cornerShape.moveTo(-w/2, -l/2);
+                cornerShape.lineTo(w/2, -l/2);
+                cornerShape.lineTo(w/2, l/2);
+                cornerShape.lineTo(0, l/2);
+                cornerShape.lineTo(0, 0);
+                cornerShape.lineTo(-w/2, 0);
+                cornerShape.lineTo(-w/2, -l/2);
+
+                geo = new THREE.ExtrudeGeometry(cornerShape, { depth: h, bevelEnabled: false });
+                geo.rotateX(-Math.PI / 2); // Aufrecht hinstellen
+                geo.translate(0, h, 0); // Bodenbündig ausrichten
+                group.add(new THREE.Mesh(geo));
+
+                // Manuelle Noppen-Verteilung auf den 3 Segmenten des L-Steins
+                const studG = new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12); studG.translate(0, 0.04, 0);
+                const u = App.spatialUnit;
+                
+                const s1 = new THREE.Mesh(studG); s1.position.set(-u/2, h, -u/2); group.add(s1);
+                const s2 = new THREE.Mesh(studG); s2.position.set(u/2, h, -u/2); group.add(s2);
+                const s3 = new THREE.Mesh(studG); s3.position.set(u/2, h, u/2); group.add(s3);
+                return group;
+
+            case 'profile_box': // 1x2 Stein mit horizontalen Einkerbungen (Mauer-Optik)
+                const baseBox = new THREE.Mesh(new THREE.BoxGeometry(w - 0.03, h, l - 0.03));
+                baseBox.position.y = h/2; group.add(baseBox);
+
+                // Dekorative Mauer-Fugen auf den Längsseiten einlassen
+                const grooveGeo = new THREE.BoxGeometry(w * 1.01, h * 0.06, 0.03);
+                const g1 = new THREE.Mesh(grooveGeo); g1.position.set(0, h * 0.33, l/2); group.add(g1);
+                const g2 = new THREE.Mesh(grooveGeo); g2.position.set(0, h * 0.66, l/2); group.add(g2);
+                const g3 = new THREE.Mesh(grooveGeo); g3.position.set(0, h * 0.33, -l/2); group.add(g3);
+                const g4 = new THREE.Mesh(grooveGeo); g4.position.set(0, h * 0.66, -l/2); group.add(g4);
+                
+                // Standard 1x2 Noppen oben drauf setzen
+                const studGeom = new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12); studGeom.translate(0, 0.04, 0);
+                for(let z = -0.25; z <= 0.25; z += 0.5) {
+                    const st = new THREE.Mesh(studGeom); st.position.set(0, h, z * l); group.add(st);
+                }
+                return group;
+        }
+    };
+
+    // 3. RE-RENDER TRAGBAR MACHEN
+    if (window.UIManager) {
+        UIManager.renderBricks('standard');
+    }
+    console.log("💚 Alle neuen Standard-Größen nahtlos und snappingsicher integriert!");
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - MAGICAL NEON & GLOW-BRICKS EXTENSION (REFINED)
+// =========================================================================
+
+(function() {
+    console.log("🌟 Refinement of Neon Glow-Bricks activated...");
+
+    // 1. NEON-FARBEN MIT GLOW-EIGENSCHAFT IN DIE REGISTRY INJIZIEREN (UNVERÄNDERT)
+    const neonColors = [
+        { id: 'neon_green', name: 'Zappy Neon-Grün 🔋', hex: '#22c55e', glow: true },
+        { id: 'neon_orange', name: 'Glühende Lava 🌋', hex: '#f97316', glow: true },
+        { id: 'neon_cyan', name: 'Cyber-Laserblau ⚡', hex: '#06b6d4', glow: true },
+        { id: 'neon_purple', name: 'Magisches Plasma 🔮', hex: '#a855f7', glow: true }
+    ];
+    Registry.colors.push(...neonColors);
+
+    // 2. KORREKTUR DER MATERIAL-ENGINE (GESÄTTIGTERES GLOWEN, NICHT GRELL)
+    const baseGetMaterial = Engine3D.getMaterial;
+    Engine3D.getMaterial = function(colorId, isPreview = false) {
+        // Hol das Standard-Material aus dem Core
+        const material = baseGetMaterial.call(Engine3D, colorId, isPreview);
+        const colorData = Registry.colors.find(c => c.id === colorId);
+        
+        // Wenn es eine Leuchtfarbe ist, aktivieren wir das hocheffiziente Eigenleuchten
+        if (colorData && colorData.glow) {
+            // Wir verwenden die gesättigte Farbe für emissive, damit sie gesättigt bleibt.
+            material.emissive = new THREE.Color(colorData.hex);
+            // Die Vorschau leuchtet leicht, der fertig gebaute Stein strahlt, aber gesättigt.
+            // Reduziert von 1.8 auf 1.0, um "grell" zu vermeiden.
+            material.emissiveIntensity = isPreview ? 0.3 : 1.0; 
+            // Option: Die Grundfarbe dämpfen, damit der Leuchteffekt gesättigter wirkt.
+            // material.color.setHex(0xaaaaaa); // Dämpft die Grundfarbe leicht.
+        }
+        return material;
+    };
+
+    // 3. LICHT-PIPELINE OPTIMIEREN (ECHTES LICHT, ABER SANFTER)
+    const baseSpawn = Engine3D.spawn;
+    Engine3D.spawn = function(brick) {
+        // Erst den Stein ganz normal über das Core-System bauen
+        baseSpawn.call(Engine3D, brick);
+        
+        // Prüfen, ob der frisch gebaute Stein eine Neonfarbe hat
+        const colorData = Registry.colors.find(c => c.id === brick.color);
+        if (colorData && colorData.glow) {
+            // Finde das gerade erzeugte 3D-Objekt in der Szene
+            const group = Engine3D.scene.getObjectByProperty('uuid', brick.uuid);
+            if (group) {
+                // Wir setzen ein Punktlicht direkt in das Herz des Steins
+                // Reichweite von 3.5 Einheiten sorgt für perfekte Beleuchtung der Nachbarn ohne Performance-Verlust
+                // Intensität leicht angepasst auf 1.0 für bessere Balance.
+                const softGlowLight = new THREE.PointLight(colorData.hex, 1.0, 3.5);
+                softGlowLight.position.set(0, App.spatialHeight / 2, 0);
+                softGlowLight.castShadow = false; // Schont den Prozessor bei vielen Lichtern
+                softGlowLight.name = "neon_light_source";
+                
+                group.add(softGlowLight);
+            }
+        }
+    };
+
+    // 4. UI FARB-RASTER KORRIGIEREN (ENTFERNEN DES PULSIERENS, SAUBERERER GLOW-EFFEKT)
+    const baseRenderColors = UIManager.renderColors;
+    UIManager.renderColors = function() {
+        // Lass das UI-System die Kreise wie gewohnt zeichnen
+        baseRenderColors.call(UIManager);
+        
+        // Verpasse allen Neon-Knöpfen per JavaScript ein leuchtendes CSS-Gewand
+        Registry.colors.forEach(c => {
+            if (c.glow) {
+                const btn = document.querySelector(`button[title="${c.name}"]`);
+                if (btn) {
+                    // Entferne das störende Pulsieren komplett!
+                    btn.classList.remove('animate-pulse');
+                    // Behalte den box-shadow, aber dämpfe ihn leicht ab für ein saubereres Design.
+                    // Reduziert von 20px auf 12px und weniger opak.
+                    btn.style.boxShadow = `0 0 12px ${c.hex}99`;
+                    // Entferne den weißen Innenring für maximale Sauberkeit.
+                    btn.style.border = "none";
+                }
+            }
+        });
+    };
+
+    // 5. SOFORTIGEN NEUAUFBAU DER PALETTE STARTEN
+    UIManager.renderColors();
+    console.log("💚 Neon-Glow-Modul Refinement successfully applied. Clean glow is active!");
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - MEGA PLATES & FOUNDATIONS EXTENSION (SOTA 2026)
+// =========================================================================
+
+(function() {
+    console.log("🫓 Gieße das Fundament: Platten-Erweiterungspack wird geladen...");
+
+    // 1. NEUE STANDARD- UND SPEZIALPLATTEN IN DIE REGISTRY EINTRAGEN
+    // Alle Platten haben eine Lego-konforme Höhe von 0.33 Einheiten
+    const extendedPlates = {
+        // --- Lange Standard-Platten ---
+        'p13': { name: 'Platte 1x3', size: [1, 3, 0.33], category: 'plates', shape: 'box' },
+        'p14': { name: 'Platte 1x4', size: [1, 4, 0.33], category: 'plates', shape: 'box' },
+        'p16': { name: 'Lange Platte 1x6', size: [1, 6, 0.33], category: 'plates', shape: 'box' },
+        'p23': { name: 'Platte 2x3', size: [2, 3, 0.33], category: 'plates', shape: 'box' },
+        'p24': { name: 'Platte 2x4', size: [2, 4, 0.33], category: 'plates', shape: 'box' },
+        'p26': { name: 'Riesen-Platte 2x6', size: [2, 6, 0.33], category: 'plates', shape: 'box' },
+        
+        // --- Große Bau- und Konstruktionsplatten ---
+        'p48': { name: 'Bau-Fundament 4x8', size: [4, 8, 0.33], category: 'plates', shape: 'box' },
+        
+        // --- Modifizierte & Runde Spezial-Platten ---
+        'p11_round': { name: 'Runde Fliese 1x1', size: [1, 1, 0.33], category: 'plates', shape: 'plate_round_1x1' },
+        'p22_round': { name: 'Rund-Platte 2x2', size: [2, 2, 0.33], category: 'plates', shape: 'plate_round_2x2' },
+        'p22_corner': { name: 'Eck-Platte L-Form 2x2', size: [2, 2, 0.33], category: 'plates', shape: 'plate_corner' },
+        'p12_clip': { name: 'Platte 1x2 mit Clip', size: [1, 2, 0.33], category: 'plates', shape: 'plate_clip' }
+    };
+    Object.assign(Registry.bricks, extendedPlates);
+
+    // 2. 3D-GEOMETRIE-GENERATOR FÜR SPEZIALPLATTEN ERWEITERN
+    const previousFactoryChain = GeometryFactory.create;
+    GeometryFactory.create = function(brickId) {
+        const config = Registry.bricks[brickId];
+        if (!config || !['plate_round_1x1', 'plate_round_2x2', 'plate_corner', 'plate_clip'].includes(config.shape)) {
+            return previousFactoryChain(brickId); // Rechteckige Box-Platten regelt der Core automatisch
+        }
+
+        const w = config.size[0] * App.spatialUnit;
+        const l = config.size[1] * App.spatialUnit;
+        const h = config.size[2] * App.spatialHeight;
+        const group = new THREE.Group();
+        let geo;
+
+        // Einzelne Noppen-Schablone für die Wiederverwendung
+        const studGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12); 
+        studGeo.translate(0, 0.04, 0);
+
+        switch(config.shape) {
+            case 'plate_round_1x1': // Runde 1x1 Platte (Knopf)
+                geo = new THREE.CylinderGeometry(w/2 - 0.02, w/2 - 0.02, h, 20); geo.translate(0, h/2, 0);
+                group.add(new THREE.Mesh(geo));
+                // Zentrale Noppe
+                const s11 = new THREE.Mesh(studGeo); s11.position.set(0, h, 0); group.add(s11);
+                break;
+
+            case 'plate_round_2x2': // Runde 2x2 Platte
+                geo = new THREE.CylinderGeometry(w/2 - 0.02, w/2 - 0.02, h, 28); geo.translate(0, h/2, 0);
+                group.add(new THREE.Mesh(geo));
+                // 4 Noppen im Quadrat angeordnet
+                const offsets = [-0.25, 0.25];
+                offsets.forEach(x => {
+                    offsets.forEach(z => {
+                        const s22 = new THREE.Mesh(studGeo);
+                        s22.position.set(x * w, h, z * l); group.add(s22);
+                    });
+                });
+                break;
+
+            case 'plate_corner': // L-förmige 2x2 Eckplatte
+                const pShape = new THREE.Shape();
+                pShape.moveTo(-w/2, -l/2); pShape.lineTo(w/2, -l/2); pShape.lineTo(w/2, l/2);
+                pShape.lineTo(0, l/2); pShape.lineTo(0, 0); pShape.lineTo(-w/2, 0);
+                pShape.lineTo(-w/2, -l/2);
+
+                geo = new THREE.ExtrudeGeometry(pShape, { depth: h, bevelEnabled: false });
+                geo.rotateX(-Math.PI / 2); geo.translate(0, h, 0);
+                group.add(new THREE.Mesh(geo));
+
+                // 3 Noppen auf den L-Schenkeln verteilen
+                const u = App.spatialUnit;
+                const c1 = new THREE.Mesh(studGeo); c1.position.set(-u/2, h, -u/2); group.add(c1);
+                const c2 = new THREE.Mesh(studGeo); c2.position.set(u/2, h, -u/2); group.add(c2);
+                const c3 = new THREE.Mesh(studGeo); c3.position.set(u/2, h, u/2); group.add(c3);
+                break;
+
+            case 'plate_clip': // 1x2 Platte mit Greif-Klammer an der Seite
+                // Basis-Platte
+                const baseBox = new THREE.Mesh(new THREE.BoxGeometry(w - 0.03, h, l - 0.03));
+                baseBox.position.y = h/2; group.add(baseBox);
+                
+                // Der abstehende Clip-Halter (Hohlzylinder-Segment)
+                const clipHolder = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, h, 12, 1, true, 0, Math.PI * 1.6));
+                clipHolder.position.set(w/2 + 0.06, h/2, 0);
+                clipHolder.rotation.y = Math.PI / 2;
+                group.add(clipHolder);
+
+                // 2 Noppen auf der Platte platzieren
+                for(let z = -0.25; z <= 0.25; z += 0.5) {
+                    const clSt = new THREE.Mesh(studGeo); clSt.position.set(0, h, z * l); group.add(clSt);
+                }
+                break;
+        }
+
+        return group;
+    };
+
+    // 3. SEITENPANEL-REFRESH ERZWINGEN
+    if (window.UIManager) {
+        UIManager.renderBricks('plates');
+    }
+    console.log("💚 Platten-Erweiterungspack inklusive Rund- und Clip-System erfolgreich integriert!");
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - MEGA NATURE & LANDSCAPE EXTENSION (SOTA 2026)
+// =========================================================================
+
+(function() {
+    console.log("🌳 Sprouting advanced nature and landscape elements...");
+
+    // 1. ICONISCHE LEGO-NATURBAUTEILE IN DIE REGISTRY EINTRAGEN
+    const natureSpecialBricks = {
+        'na_palm_trunk': { name: 'Palmen-Stamm stapelbar', size: [1, 1, 1.2], category: 'nature', shape: 'palm_trunk' },
+        'na_pine_leaf_4x4': { name: 'Tannen-Zweig 4x4', size: [4, 4, 1], category: 'nature', shape: 'pine_leaf' },
+        'na_bush_round_2x2': { name: 'Gebüsch-Element 2x2', size: [2, 2, 1.3], category: 'nature', shape: 'lego_bush' },
+        'na_grass_3prong': { name: 'Klassischer Grashalm', size: [1, 1, 0.8], category: 'nature', shape: 'grass_3prong' },
+        'na_rock_boulder': { name: 'Felsen-Formteil 2x2', size: [2, 2, 2], category: 'nature', shape: 'rock_boulder' },
+        'na_bamboo_stem': { name: 'Bambus-Spross 1x1', size: [1, 1, 1.5], category: 'nature', shape: 'bamboo_stem' },
+        'na_hanging_vine': { name: 'Kletter-Liane / Ranke', size: [1, 1, 3], category: 'nature', shape: 'hanging_vine' }
+    };
+    Object.assign(Registry.bricks, natureSpecialBricks);
+
+    // 2. ERWEITERUNG DER 3D-GEOMETRIE-FABRIK FÜR ORGANISCHE FORMEN
+    const previousNatureFactory = GeometryFactory.create;
+    GeometryFactory.create = function(brickId) {
+        const config = Registry.bricks[brickId];
+        if (!config || !['palm_trunk', 'pine_leaf', 'lego_bush', 'grass_3prong', 'rock_boulder', 'bamboo_stem', 'hanging_vine'].includes(config.shape)) {
+            return previousNatureFactory(brickId); // Fallback an vorherige Instanzen
+        }
+
+        const w = config.size[0] * App.spatialUnit;
+        const l = config.size[1] * App.spatialUnit;
+        const h = config.size[2] * App.spatialHeight;
+        const group = new THREE.Group();
+        let geo;
+
+        // Noppen-Geometrie für die Oberseiten
+        const studGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12); 
+        studGeo.translate(0, 0.04, 0);
+
+        switch(config.shape) {
+            case 'palm_trunk': // Konischer, geriffelter Palmenstamm (unten breit, oben schmaler zum Stecken)
+                geo = new THREE.CylinderGeometry(w * 0.28, w * 0.45, h * 0.85, 12); geo.translate(0, h * 0.425, 0);
+                group.add(new THREE.Mesh(geo));
+                // Unterer Wulst-Ring
+                const ringGeo = new THREE.CylinderGeometry(w * 0.48, w * 0.48, h * 0.15, 12); ringGeo.translate(0, h * 0.075, 0);
+                group.add(new THREE.Mesh(ringGeo));
+                // Oberer Steck-Pin (Noppe)
+                const pin = new THREE.Mesh(studGeo); pin.position.set(0, h * 0.85, 0); group.add(pin);
+                return group; // Eigene Noppen-Logik beendet das Segment
+
+            case 'pine_leaf': // Breiter, stufiger Tannenzweig (klassischer Lego-Nadelbaum-Aufsatz)
+                for (let i = 0; i < 3; i++) {
+                    const factor = 1 - (i * 0.25);
+                    const tier = new THREE.Mesh(new THREE.ConeGeometry((w / 2) * factor, h * 0.4, 8));
+                    tier.position.y = (h * 0.2) + (i * h * 0.3);
+                    group.add(tier);
+                }
+                break;
+
+            case 'lego_bush': // Runder Pflanzenschopf aus ineinander verschachtelten Kugelkörpern
+                const centerSphere = new THREE.Mesh(new THREE.SphereGeometry(w * 0.4, 12, 12)); centerSphere.position.y = h/2; group.add(centerSphere);
+                // Seitliche Blattschöpfe dekorieren
+                for(let r = 0; r < 4; r++) {
+                    const leafCluster = new THREE.Mesh(new THREE.SphereGeometry(w * 0.28, 8, 8));
+                    leafCluster.position.set(Math.cos(r * Math.PI/2) * w * 0.3, h * 0.6, Math.sin(r * Math.PI/2) * l * 0.3);
+                    group.add(leafCluster);
+                }
+                break;
+
+            case 'grass_3prong': // Drei dünne Halme, die elegant nach außen gebogen wegstehen
+                const baseDisc = new THREE.Mesh(new THREE.CylinderGeometry(w*0.2, w*0.2, h*0.15, 8)); baseDisc.position.y = (h*0.15)/2; group.add(baseDisc);
+                for(let i = 0; i < 3; i++) {
+                    const blade = new THREE.Mesh(new THREE.ConeGeometry(0.04, h * 0.9, 6));
+                    blade.position.set(0, h * 0.45, 0);
+                    blade.rotation.z = 0.25; // Neigung nach außen
+                    blade.rotation.y = (i * Math.PI * 2) / 3; // Drittel-Teilung im Kreis
+                    group.add(blade);
+                }
+                return group; // Grashalme sind oben spitz, keine Noppen möglich
+
+            case 'rock_boulder': // Ein asymmetrischer, kantiger Felsbrocken (Dodekaeder-Geometrie für Lego-Look)
+                geo = new THREE.DodecahedronGeometry(w * 0.58, 0);
+                geo.scale(1.0, 1.1, 1.0); // Leicht in die Höhe strecken
+                geo.translate(0, h/2, 0);
+                group.add(new THREE.Mesh(geo));
+                break;
+
+            case 'bamboo_stem': // Segmentierter Bambusstab mit Verdickungen
+                const segments = 3;
+                for(let i = 0; i < segments; i++) {
+                    const segH = h / segments;
+                    const segment = new THREE.Mesh(new THREE.CylinderGeometry(w*0.18, w*0.18, segH - 0.04, 10));
+                    segment.position.y = (segH * i) + (segH / 2);
+                    group.add(segment);
+                    // Segment-Knotenpunkt (Ring)
+                    const joint = new THREE.Mesh(new THREE.CylinderGeometry(w*0.22, w*0.22, 0.04, 10));
+                    joint.position.y = (segH * i) + segH - 0.02;
+                    group.add(joint);
+                }
+                break;
+
+            case 'hanging_vine': // Gewundene, organische Kletterpflanze
+                const chainElements = 4;
+                for(let i = 0; i < chainElements; i++) {
+                    const elemH = h / chainElements;
+                    const link = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, elemH, 8));
+                    link.position.set(Math.sin(i * 1.5) * 0.1, (elemH * i) + elemH/2, 0);
+                    link.rotation.z = Math.cos(i * 1.5) * 0.15;
+                    group.add(link);
+                }
+                break;
+        }
+
+        // Standard-Noppe oben drauf setzen (falls anbaubar)
+        if (!['hanging_vine', 'pine_leaf'].includes(config.shape)) {
+            const topStud = new THREE.Mesh(studGeo); topStud.position.set(0, h, 0); group.add(topStud);
+        }
+
+        return group;
+    };
+
+    // 3. EINE URWALD-OASEN-VORLAGE ALS PRESET HINZUFÜGEN (BLUEPRINTS)
+    if (window.BlueprintManager) {
+        BlueprintManager.blueprints['nature_oasis'] = {
+            name: '🌳 Kleine Palmen-Oase',
+            blocks: [
+                { type: 'na_rock_boulder', color: 'dark_iron', pos: [-1, 0, -1], rot: 0 },
+                { type: 'na_grass_3prong', color: 'green', pos: [1, 0, 1], rot: 0 },
+                // Eine kleine Palme aus den stapelbaren Stamm-Elementen bauen
+                { type: 'na_palm_trunk', color: 'orange', pos: [0, 0, 0], rot: 0 },
+                { type: 'na_palm_trunk', color: 'orange', pos: [0, 1.2, 0], rot: 0.4 },
+                { type: 'na_palm_trunk', color: 'orange', pos: [0.1, 2.4, 0], rot: 0.8 },
+                // Palmenkrone aufsetzen (Tannenzweig zweckentfremdet/umgefärbt)
+                { type: 'na_pine_leaf_4x4', color: 'green', pos: [0.2, 3.6, 0], rot: 0 }
+            ]
+        };
+        BlueprintManager.init();
+    }
+
+    // Refresh der Kacheln erzwingen, wenn der User im Natur-Reiter steht
+    if (window.UIManager) {
+        UIManager.renderBricks('nature');
+    }
+
+    console.log("💚 Das Mega Natur-Erweiterungspack wurde erfolgreich verwurzelt!");
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - ADVANCED TREE SPECIES EXTENSION (SOTA 2026)
+// =========================================================================
+
+(function() {
+    console.log("🌳 Pflanze neue Baumarten im BrickCraft-Wald...");
+
+    // 1. NEUE BAUMARTEN IN DIE REGISTRY EINTRAGEN
+    const newTreeSpecies = {
+        'na_tree_classic': { name: 'Klassischer Laubbaum', size: [2, 2, 3], category: 'nature', shape: 'tree_classic' },
+        'na_tree_apple': { name: 'Apfelbaum mit Früchten', size: [2, 2, 3], category: 'nature', shape: 'tree_apple' },
+        'na_tree_birch': { name: 'Birke (Weißer Stamm)', size: [1, 1, 3.5], category: 'nature', shape: 'tree_birch' },
+        'na_tree_sakura': { name: 'Kirschblütenbaum (Rosa)', size: [2, 2, 3], category: 'nature', shape: 'tree_sakura' },
+        'na_tree_willow': { name: 'Trauerweide hängend', size: [2, 2, 2.5], category: 'nature', shape: 'tree_willow' }
+    };
+    Object.assign(Registry.bricks, newTreeSpecies);
+
+    // 2. ERWEITERUNG DER 3D-GEOMETRIE-FABRIK FÜR BAUM-SHAPES
+    const priorNatureFactoryChain = GeometryFactory.create;
+    GeometryFactory.create = function(brickId) {
+        const config = Registry.bricks[brickId];
+        if (!config || !['tree_classic', 'tree_apple', 'tree_birch', 'tree_sakura', 'tree_willow'].includes(config.shape)) {
+            return priorNatureFactoryChain(brickId); // Fallback auf bestehende Geometrien
+        }
+
+        const w = config.size[0] * App.spatialUnit;
+        const l = config.size[1] * App.spatialUnit;
+        const h = config.size[2] * App.spatialHeight;
+        const group = new THREE.Group();
+        let geo;
+
+        // Hilfsfunktion für Standard-Lego-Noppe
+        const addTopStud = (targetGroup, height) => {
+            const studG = new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12);
+            studG.translate(0, 0.04, 0);
+            const stud = new THREE.Mesh(studG);
+            stud.position.set(0, height, 0);
+            targetGroup.add(stud);
+        };
+
+        // Hilfsfunktion für Baumkronen-Kugeln (Lego-Style)
+        const createLeavesCluster = (targetGroup, size, yPos, colorHex) => {
+            const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.6 });
+            const cluster = new THREE.Mesh(new THREE.SphereGeometry(size, 10, 10), mat);
+            cluster.position.set(0, yPos, 0);
+            cluster.castShadow = true; cluster.receiveShadow = true;
+            targetGroup.add(cluster);
+        };
+
+        switch(config.shape) {
+            case 'tree_classic': // Klassischer Laubbaum: Brauner Stamm + 3 grüne, gestapelte Kugelkronen
+                const trunkGeo = new THREE.CylinderGeometry(w*0.15, w*0.22, h*0.4, 10); trunkGeo.translate(0, h*0.2, 0);
+                const trunk = new THREE.Mesh(trunkGeo, new THREE.MeshStandardMaterial({ color: 0x9a3412, roughness: 0.8 })); // Braun
+                group.add(trunk);
+                
+                // Verschachtelte Blätterkronen (Dunkelgrün bis Hellgrün)
+                createLeavesCluster(group, w*0.5, h*0.55, 0x15803d);
+                createLeavesCluster(group, w*0.42, h*0.75, 0x16a34a);
+                createLeavesCluster(group, w*0.32, h*0.92, 0x22c55e);
+                break;
+
+            case 'tree_apple': // Apfelbaum: Wie Classic, aber mit kleinen roten Frucht-Kugeln
+                const aTrunkGeo = new THREE.CylinderGeometry(w*0.15, w*0.22, h*0.4, 10); aTrunkGeo.translate(0, h*0.2, 0);
+                group.add(new THREE.Mesh(aTrunkGeo, new THREE.MeshStandardMaterial({ color: 0x7c2d12, roughness: 0.8 })));
+                
+                createLeavesCluster(group, w*0.5, h*0.55, 0x16a34a);
+                createLeavesCluster(group, w*0.38, h*0.8, 0x22c55e);
+                
+                // Rote Äpfel injizieren (kleine Kugeln)
+                const appleMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.3 });
+                const appleOffsets = [
+                    [w*0.35, h*0.5, w*0.2], [-w*0.35, h*0.55, -w*0.2],
+                    [w*0.1, h*0.65, w*0.35], [-w*0.2, h*0.7, -w*0.3]
+                ];
+                appleOffsets.forEach(pos => {
+                    const apple = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 6), appleMat);
+                    apple.position.set(pos[0], pos[1], pos[2]);
+                    group.add(apple);
+                });
+                break;
+
+            case 'tree_birch': // Birke: Schlanker weißer Stamm mit charakteristischen schwarzen Ringfugen
+                const bTrunk = new THREE.Mesh(new THREE.CylinderGeometry(w*0.12, w*0.16, h*0.5, 10), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.5 })); // Weiß
+                bTrunk.position.y = h*0.25; group.add(bTrunk);
+                
+                // Schwarze Rinden-Markierungen aufsetzen
+                const stripeMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+                for(let i = 1; i <= 3; i++) {
+                    const stripe = new THREE.Mesh(new THREE.CylinderGeometry(w*0.14, w*0.14, 0.05, 10), stripeMat);
+                    stripe.position.set(0, h * 0.12 * i, 0); group.add(stripe);
+                }
+                
+                // Lockere, helle Birkenkrone
+                createLeavesCluster(group, w*0.45, h*0.6, 0x4ade80);
+                createLeavesCluster(group, w*0.35, h*0.82, 0x86efac);
+                break;
+
+            case 'tree_sakura': // Japanischer Kirschblütenbaum: Dunkler Stamm + weiche, rosa Blütenwolken
+                const sTrunkGeo = new THREE.CylinderGeometry(w*0.14, w*0.25, h*0.35, 10); sTrunkGeo.translate(0, h*0.175, 0);
+                group.add(new THREE.Mesh(sTrunkGeo, new THREE.MeshStandardMaterial({ color: 0x431407, roughness: 0.9 }))); // Fast Schwarz
+                
+                // Blütenwolken in Rosa/Pink gestapelt
+                createLeavesCluster(group, w*0.52, h*0.5, 0xec4899);
+                createLeavesCluster(group, w*0.44, h*0.72, 0xf472b6);
+                createLeavesCluster(group, w*0.32, h*0.9, 0xfbcfe8);
+                break;
+
+            case 'tree_willow': // Trauerweide: Knorriger Stamm + breite, flache Hängekrone
+                const wTrunkGeo = new THREE.CylinderGeometry(w*0.18, w*0.28, h*0.4, 10); wTrunkGeo.translate(0, h*0.2, 0);
+                group.add(new THREE.Mesh(wTrunkGeo, new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.8 })));
+                
+                // Breite Hauptkrone
+                createLeavesCluster(group, w*0.6, h*0.6, 0x047857);
+                
+                // Herabhängende Blätterzweige (Zylinder) an den Außenseiten simulieren
+                const willowLeafMat = new THREE.MeshStandardMaterial({ color: 0x065f46, roughness: 0.6 });
+                for(let r = 0; r < 5; r++) {
+                    const strand = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.04, h * 0.45, 6), willowLeafMat);
+                    const angle = (r * Math.PI * 2) / 5;
+                    strand.position.set(Math.cos(angle) * w * 0.45, h * 0.45, Math.sin(angle) * l * 0.45);
+                    group.add(strand);
+                }
+                break;
+        }
+
+        // Jedes Baum-Asset erhält oben auf der Spitze eine Noppe, um Vögel oder Fahnen anzubauen
+        addTopStud(group, h);
+
+        // Allen Kindern der Gruppe Schattenwurf zuweisen (wichtig für die Tiefenwirkung)
+        group.children.forEach(child => {
+            if(child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
+        });
+
+        return group;
+    };
+
+    // Refresh der UI-Kacheln im linken Natur-Menü erzwingen
+    if (window.UIManager) {
+        UIManager.renderBricks('nature');
+    }
+
+    console.log("💚 Die neuen Baumarten wurden erfolgreich im Studio eingepflanzt!");
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - PERMANENTE SHORTCUT-ANZEIGE (SOTA 2026)
+// =========================================================================
+
+(function() {
+    console.log("⌨️ Injektiere permanente Tastatur-Shortcut-Anzeige...");
+
+    // Finde das rechte Seitenmenü
+    const sidebarRight = document.getElementById('sidebar-right');
+    if (!sidebarRight) return;
+
+    // Finde den unteren Bereich, in dem der Bauanleitung-Button sitzt
+    const footerArea = sidebarRight.querySelector('.pt-3.border-t');
+    if (!footerArea) return;
+
+    // Erstelle ein schickes, minimalistisches Info-Feld
+    const shortcutBox = document.createElement('div');
+    shortcutBox.id = 'permanent-hotkey-legend';
+    shortcutBox.className = "mb-2 text-xs text-slate-400 font-medium space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200/60";
+    shortcutBox.innerHTML = `
+        <div class="flex justify-between items-center">
+            <span>Baustein drehen</span>
+            <kbd class="bg-white px-2 py-0.5 rounded border border-slate-300 text-slate-600 font-bold shadow-sm text-[10px]">R</kbd>
+        </div>
+        <div class="flex justify-between items-center">
+            <span>Schritt zurück (Undo)</span>
+            <kbd class="bg-white px-2 py-0.5 rounded border border-slate-300 text-slate-600 font-bold shadow-sm text-[10px]">Z</kbd>
+        </div>
+        <div class="flex justify-between items-center">
+            <span>Schritt vor (Redo)</span>
+            <kbd class="bg-white px-2 py-0.5 rounded border border-slate-300 text-slate-600 font-bold shadow-sm text-[10px]">V</kbd>
+        </div>
+    `;
+
+    // Setze die Box direkt über die Trennlinie des Buttons
+    footerArea.parentNode.insertBefore(shortcutBox, footerArea);
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - DEEP SPACE & ORBIT EXTENSION PACK (SOTA 2026)
+// =========================================================================
+
+(function() {
+    console.log("🌌 Starte Hyperantrieb: Weltraum-Extension wird geladen...");
+
+    // 1. ANPASSUNG DER SHAPES FÜR BESTEHENDE STUBS & NEUE WELTRAUM-ELEMENTE
+    const spaceModifications = {
+        // Bestehende Stubs auf prozedurale Custom-Shapes umleiten
+        'sp_thruster': { name: 'Raketen-Triebwerk', size: [1, 1, 1.5], category: 'space', shape: 'space_thruster' },
+        'sp_wing_l': { name: 'Raumschiff-Flügel Links', size: [2, 3, 1], category: 'space', shape: 'space_wing_l' },
+        'sp_wing_r': { name: 'Raumschiff-Flügel Rechts', size: [2, 3, 1], category: 'space', shape: 'space_wing_r' },
+        'sp_antenna': { name: 'Sensor-Antenne', size: [1, 1, 2], category: 'space', shape: 'space_antenna' },
+        'sp_cockpit': { name: 'Cockpit-Kuppel (Glas)', size: [2, 2, 1.2], category: 'space', shape: 'space_cockpit' },
+        
+        // Brandneue Sci-Fi Tech-Komponenten hinzufügen
+        'sp_solar_grid': { name: 'Solar-Panel 2x4', size: [2, 4, 0.33], category: 'space', shape: 'space_solar' },
+        'sp_laser_cannon': { name: 'Doppel-Laserkanone', size: [1, 2, 1], category: 'space', shape: 'space_laser' }
+    };
+    Object.assign(Registry.bricks, spaceModifications);
+
+    // Hilfsfunktion: Generiert eine coole blaue Solarzellen-Struktur ohne externe Bilder
+    const createSolarTexture = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128; canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+        // Deep Space Blau
+        ctx.fillStyle = '#1e3a8a'; ctx.fillRect(0, 0, 128, 256);
+        // Solar-Gitterlinien (Gold/Silber-Look)
+        ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 2;
+        for(let y = 0; y < 256; y += 32) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(128, y); ctx.stroke();
+        }
+        for(let x = 0; x < 128; x += 32) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 256); ctx.stroke();
+        }
+        const tex = new THREE.CanvasTexture(canvas);
+        return tex;
+    };
+
+    // 2. INJEKTION IN DIE THREE.JS GEOMETRIE-PIPELINE
+    const priorSpaceFactory = GeometryFactory.create;
+    GeometryFactory.create = function(brickId) {
+        const config = Registry.bricks[brickId];
+        if (!config || !['space_thruster', 'space_wing_l', 'space_wing_r', 'space_antenna', 'space_cockpit', 'space_solar', 'space_laser'].includes(config.shape)) {
+            return priorSpaceFactory(brickId); // Fallback auf Standard-Steine
+        }
+
+        const w = config.size[0] * App.spatialUnit;
+        const l = config.size[1] * App.spatialUnit;
+        const h = config.size[2] * App.spatialHeight;
+        const group = new THREE.Group();
+        let geo;
+
+        // Noppen-Geometrie für Aufbauten
+        const studGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12); studGeo.translate(0, 0.04, 0);
+
+        switch(config.shape) {
+            case 'space_thruster': // Konisches Raketentriebwerk mit geriffeltem Auslass
+                geo = new THREE.CylinderGeometry(w*0.25, w*0.45, h*0.75, 16); geo.translate(0, h*0.375, 0);
+                const nozzle = new THREE.Mesh(geo); group.add(nozzle);
+                // Glühender Plasma-Ring innen (Nutzt emissive Detaillierung)
+                const fireRing = new THREE.Mesh(
+                    new THREE.CylinderGeometry(w*0.2, w*0.2, 0.05, 12),
+                    new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0ea5e9, emissiveIntensity: 1.5 })
+                );
+                fireRing.position.y = 0.02; group.add(fireRing);
+                break;
+
+            case 'space_wing_l': // Aerodynamischer linker Delta-Flügel (Wedge-Profil)
+            case 'space_wing_r': // Rechter Delta-Flügel
+                const wingShape = new THREE.Shape();
+                const isLeft = config.shape === 'space_wing_l';
+                if (isLeft) {
+                    wingShape.moveTo(-w/2, -l/2); wingShape.lineTo(w/2, -l/2); wingShape.lineTo(-w/2, l/2);
+                } else {
+                    wingShape.moveTo(w/2, -l/2); wingShape.lineTo(-w/2, -l/2); wingShape.lineTo(w/2, l/2);
+                }
+                geo = new THREE.ExtrudeGeometry(wingShape, { depth: h * 0.3, bevelEnabled: false });
+                geo.rotateX(-Math.PI / 2); geo.center(); geo.translate(0, (h*0.3)/2, 0);
+                group.add(new THREE.Mesh(geo));
+                // Setze Noppen auf die dicke Flügel-Kante
+                const stWing = new THREE.Mesh(studGeo); stWing.position.set(isLeft ? -w/4 : w/4, h*0.3, -l/3); group.add(stWing);
+                return group;
+
+            case 'space_antenna': // Schlanke Peilantenne mit Radarschüssel am Fuß
+                const dish = new THREE.Mesh(new THREE.CylinderGeometry(w*0.4, w*0.1, h*0.2, 16)); dish.position.y = (h*0.2)/2; group.add(dish);
+                const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, h*0.8, 8)); rod.position.y = h*0.2 + (h*0.8)/2; group.add(rod);
+                const tip = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshStandardMaterial({ color: 0xef4444 })); tip.position.y = h; group.add(tip);
+                return group;
+
+            case 'space_cockpit': // Durchsichtige Cockpithaube (Classic-Space Style)
+                const dome = new THREE.Mesh(
+                    new THREE.SphereGeometry(w/2, 16, 14, 0, Math.PI*2, 0, Math.PI/2),
+                    new THREE.MeshStandardMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.6, roughness: 0.1 })
+                );
+                dome.scale.set(1.0, h / (w/2), 1.0); // An Steinhöhe anpassen
+                group.add(dome);
+                break;
+
+            case 'space_solar': // Flaches Tech-Panel mit prozeduralem High-Tech-Zellen-Gitter
+                const panelBase = new THREE.Mesh(
+                    new THREE.BoxGeometry(w - 0.03, h, l - 0.03),
+                    new THREE.MeshStandardMaterial({ map: createSolarTexture(), roughness: 0.2 })
+                );
+                panelBase.position.y = h/2; group.add(panelBase);
+                return group; // Glatte Solarflächen besitzen keine Noppen
+
+            case 'space_laser': // Sci-Fi Kanonenblock mit zwei transparenten Laser-Läufen
+                const body = new THREE.Mesh(new THREE.BoxGeometry(w-0.03, h*0.6, l*0.5)); body.position.set(0, (h*0.6)/2, -l*0.2); group.add(body);
+                // 2 Läufe (Cylinder) nebeneinander nach vorne feuernd
+                const pipeL = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, l*0.7, 8)); pipeL.position.set(-w*0.22, h*0.3, l*0.2); pipeL.rotation.x = Math.PI/2; group.add(pipeL);
+                const pipeR = pipeL.clone(); pipeR.position.x = w*0.22; group.add(pipeR);
+                // Neon-Laser-Spitzen (Leucht-Effekt)
+                const laserTipL = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.07, 0.2, 8),
+                    new THREE.MeshStandardMaterial({ color: 0xf43f5e, emissive: 0xf43f5e, emissiveIntensity: 1.2 })
+                );
+                laserTipL.position.set(-w*0.22, h*0.3, l*0.55); laserTipL.rotation.x = Math.PI/2; group.add(laserTipL);
+                const laserTipR = laserTipL.clone(); laserTipR.position.x = w*0.22; group.add(laserTipR);
+                break;
+        }
+
+        // Standard-Noppenverteilung für Triebwerk, Cockpit-Basis und Laser-Kanone
+        if(['space_thruster', 'space_cockpit', 'space_laser'].includes(config.shape)) {
+            const topStud = new THREE.Mesh(studGeo); topStud.position.set(0, h, 0); group.add(topStud);
+        }
+
+        // Schattenberechnung aktivieren
+        group.children.forEach(c => { if(c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+        return group;
+    };
+
+    // 3. LEGENDÄRE WELTRAUM-BAUVORLAGE AKTUALISIEREN (BLUEPRINTS REAKTIVIEREN)
+    if (window.BlueprintManager) {
+        BlueprintManager.blueprints['space_starfighter'] = {
+            name: '🌌 Interstellar Starfighter',
+            blocks: [
+                { type: 'b24', color: 'white', pos: [0, 0, 0], rot: 0 },
+                { type: 'sp_cockpit', color: 'blue', pos: [0, 1.2, 0], rot: 0 },
+                { type: 'sp_wing_l', color: 'dark_iron', pos: [-1.5, 0, -0.5], rot: 0 },
+                { type: 'sp_wing_r', color: 'dark_iron', pos: [1.5, 0, -0.5], rot: 0 },
+                { type: 'sp_thruster', color: 'white', pos: [0, 0, -1.5], rot: 0 },
+                { type: 'sp_laser_cannon', color: 'white', pos: [0, 0, 1.5], rot: 0 },
+                { type: 'sp_antenna', color: 'gold', pos: [0, 1.2, -1.0], rot: 0 }
+            ]
+        };
+        // Re-Init zeichnet das rechte Vorlagen-Panel vollautomatisch wieder auf den Bildschirm!
+        BlueprintManager.init();
+    }
+
+    // Falls das Kind gerade im Orbit-Reiter steht, erzwingen wir ein Live-Update der Grid-Vorschau
+    if (window.UIManager) {
+        UIManager.renderBricks('space');
+    }
+
+    console.log("💚 Orbit-Extension erfolgreich ins Kontrollzentrum injiziert!");
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - UNIFIED WESEN & KREATUREN MASTER PACK (SELF-ADAPTING)
+// =========================================================================
+
+(function() {
+    console.log("🦄 Starte die automatische Wesen-Schnittstellen-Erkennung...");
+
+    // 1. INTELLIGENTE SUCHE NACH DEINEM EXISTIERENDEN WESEN-TAB
+    // Findet heraus, ob dein Tab 'Wesen', 'wesen' oder '🦄 Wesen' heißt
+    let findWesenKey = Object.keys(Registry.categories).find(key => 
+        Registry.categories[key].toLowerCase().includes('wesen')
+    );
+
+    // Falls kein Tab gefunden wird, erstellen wir ihn zur Sicherheit kurz neu
+    if (!findWesenKey) {
+        Registry.categories['wesen'] = '🦄 Wesen';
+        findWesenKey = 'wesen';
+    }
+    
+    console.log(`🎯 Gefundener interner Wesen-Schlüssel: "${findWesenKey}"`);
+
+    // 2. ALLE NEUEN ERWEITERUNGSTEILE DIESEM SCHLÜSSEL ZUWEISEN
+    const megaCreatureCollection = {
+        // Gelenke & Kiefer
+        'we_ball_joint': { name: 'Kugelgelenk-Platte 1x2', size: [1, 2, 0.33], category: findWesenKey, shape: 'creature_joint' },
+        'we_claw_foot': { name: 'Dino-Klauenfuß 2x2', size: [2, 2, 0.6], category: findWesenKey, shape: 'creature_claws' },
+        'we_monster_jaw': { name: 'Reißzahn-Gebiss 1x2', size: [1, 2, 0.8], category: findWesenKey, shape: 'creature_jaw' },
+        
+        // Neue Teile aus Pack 2
+        'we_beak_bird': { name: 'Vogel-Schnabel 1x1', size: [1, 1, 1], category: findWesenKey, shape: 'creature_beak' },
+        'we_tentacle_sea': { name: 'Oktopus-Tentakel 1x1x2', size: [1, 1, 2], category: findWesenKey, shape: 'creature_tentacle' },
+        'we_tail_furry': { name: 'Buschiger Schweif 1x2', size: [1, 2, 1.5], category: findWesenKey, shape: 'creature_furry_tail' },
+        'we_shark_fin': { name: 'Hai-Rückenflosse 1x2', size: [1, 2, 1.5], category: findWesenKey, shape: 'creature_fin' },
+        'we_ram_horns': { name: 'Widder-Hörner (Paar)', size: [2, 1, 1], category: findWesenKey, shape: 'creature_ram_horns' },
+        'we_tail_scaly': { name: 'Echsenschwanz-Glied', size: [1, 2, 1], category: findWesenKey, shape: 'creature_tail' }
+    };
+
+    // Nur hinzufügen, wenn die IDs nicht schon von deinen bestehenden drei Steinen belegt sind
+    Object.keys(megaCreatureCollection).forEach(id => {
+        if (!Registry.bricks[id]) {
+            Registry.bricks[id] = megaCreatureCollection[id];
+        }
+    });
+
+    // 3. GENERATOR-PIPELINE FÜR ALLE 3D-MODELLE (Kombiniert Pack 1 & 2)
+    const priorCreatureFactoryChain = GeometryFactory.create;
+    GeometryFactory.create = function(brickId) {
+        const config = Registry.bricks[brickId];
+        const validShapes = [
+            'creature_joint', 'creature_claws', 'creature_wing', 'creature_tail', 
+            'creature_horn', 'creature_jaw', 'creature_beak', 'creature_tentacle', 
+            'creature_furry_tail', 'creature_fin', 'creature_ram_horns'
+        ];
+
+        if (!config || !validShapes.includes(config.shape)) {
+            return priorCreatureFactoryChain(brickId);
+        }
+
+        const w = config.size[0] * App.spatialUnit;
+        const l = config.size[1] * App.spatialUnit;
+        const h = config.size[2] * App.spatialHeight;
+        const group = new THREE.Group();
+        let geo;
+
+        const studGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12); studGeo.translate(0, 0.04, 0);
+
+        switch(config.shape) {
+            case 'creature_joint':
+                const plateBox = new THREE.Mesh(new THREE.BoxGeometry(w - 0.03, h, l - 0.03)); plateBox.position.y = h/2; group.add(plateBox);
+                const jointNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.2, 8)); jointNeck.position.set(0, h/2, l/2 + 0.1); jointNeck.rotation.x = Math.PI/2; group.add(jointNeck);
+                const jointBall = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 12), new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.4 })); jointBall.position.set(0, h/2, l/2 + 0.2); group.add(jointBall);
+                break;
+
+            case 'creature_claws':
+                const footBase = new THREE.Mesh(new THREE.BoxGeometry(w - 0.05, h * 0.5, l - 0.05)); footBase.position.y = (h*0.5)/2; group.add(footBase);
+                for(let i = -0.33; i <= 0.33; i += 0.33) {
+                    const claw = new THREE.Mesh(new THREE.ConeGeometry(0.08, h * 0.6, 8));
+                    claw.position.set(i * w, h * 0.2, l/2); claw.rotation.x = Math.PI / 2.5;
+                    group.add(claw);
+                }
+                break;
+
+            case 'creature_jaw':
+                const jawBase = new THREE.Mesh(new THREE.BoxGeometry(w-0.03, h*0.4, l-0.03)); jawBase.position.y = (h*0.4)/2; group.add(jawBase);
+                const toothGeo = new THREE.ConeGeometry(0.05, h*0.5, 6);
+                const toothMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.2 });
+                for (let z = -0.3; z <= 0.3; z += 0.2) {
+                    const toothL = new THREE.Mesh(toothGeo, toothMat); toothL.position.set(-w*0.35, h*0.4, z*l); group.add(toothL);
+                    const toothR = new THREE.Mesh(toothGeo, toothMat); toothR.position.set(w*0.35, h*0.4, z*l); group.add(toothR);
+                }
+                break;
+
+            case 'creature_beak':
+                const beakShape = new THREE.Shape();
+                beakShape.moveTo(-w/2, h/2); beakShape.lineTo(w/2, h/2); beakShape.quadraticCurveTo(w/2, -h/4, 0, -h/2); beakShape.lineTo(-w/2, h/2);
+                geo = new THREE.ExtrudeGeometry(beakShape, { depth: l * 0.8, bevelEnabled: false });
+                geo.center(); geo.rotateY(Math.PI / 2); geo.translate(0, h/2, l/4);
+                group.add(new THREE.Mesh(geo));
+                break;
+
+            case 'creature_tentacle':
+                const segments = 5;
+                for (let i = 0; i < segments; i++) {
+                    const progress = i / segments;
+                    const radius = (w * 0.35) * (1 - progress * 0.6);
+                    const segH = h / segments;
+                    const segMesh = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.8, radius, segH, 10));
+                    segMesh.position.set(Math.sin(i * 1.2) * 0.15, (segH * i) + segH/2, i * 0.05);
+                    segMesh.rotation.z = Math.cos(i * 1.2) * 0.2;
+                    group.add(segMesh);
+                }
+                break;
+
+            case 'creature_furry_tail':
+                const tailCenter = new THREE.Mesh(new THREE.SphereGeometry(w * 0.4, 12, 12));
+                tailCenter.scale.set(1.0, 1.8, 1.0); tailCenter.position.set(0, h * 0.4, -l * 0.2);
+                tailCenter.rotation.x = -0.5; group.add(tailCenter);
+                const tipMesh = new THREE.Mesh(new THREE.ConeGeometry(w * 0.25, h * 0.5, 10), new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.7 }));
+                tipMesh.position.set(0, h * 1.0, -l * 0.6); tipMesh.rotation.x = -0.8;
+                group.add(tipMesh);
+                break;
+
+            case 'creature_fin':
+                const finShape = new THREE.Shape();
+                finShape.moveTo(-l/2, -h/2); finShape.quadraticCurveTo(l/4, -h/2, l/2, h/2); finShape.quadraticCurveTo(0, h/4, -l/2, -h/2);
+                geo = new THREE.ExtrudeGeometry(finShape, { depth: w * 0.2, bevelEnabled: false });
+                geo.center(); geo.rotateY(Math.PI / 2); geo.translate(0, h/2, 0);
+                group.add(new THREE.Mesh(geo));
+                return group;
+
+            case 'creature_ram_horns':
+                const hornMat = new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.5 });
+                for(let side = -1; side <= 1; side += 2) {
+                    if (side === 0) continue;
+                    const hornGroup = new THREE.Group();
+                    const hornGeo = new THREE.TorusGeometry(w * 0.25, 0.08, 8, 16, Math.PI * 1.2);
+                    const hornMesh = new THREE.Mesh(hornGeo, hornMat);
+                    hornMesh.rotation.y = side * Math.PI / 2;
+                    hornGroup.add(hornMesh);
+                    hornGroup.position.set(side * (w * 0.45), h * 0.6, 0);
+                    group.add(hornGroup);
+                }
+                break;
+
+            case 'creature_tail':
+                geo = new THREE.CylinderGeometry(w * 0.2, w * 0.42, l, 12); geo.rotateX(Math.PI / 2); geo.translate(0, h/2, 0);
+                group.add(new THREE.Mesh(geo));
+                break;
+        }
+
+        if(['creature_beak', 'creature_ram_horns', 'creature_furry_tail', 'creature_tail', 'creature_joint'].includes(config.shape)) {
+            const topStud = new THREE.Mesh(studGeo); topStud.position.set(0, h, 0); group.add(topStud);
+        }
+
+        group.children.forEach(c => { if(c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+        return group;
+    };
+
+    // 4. AKTUALISIERUNG DER UEBERSICHT
+    if (window.UIManager) {
+        // Erzwingt, dass die Liste neu aufgebaut wird, falls du den Tab schon offen hast
+        UIManager.renderBricks('standard'); 
+    }
+
+    console.log("💚 Alle neuen Wesen-Sonderteile wurden erfolgreich mit deinem System synchronisiert!");
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - ULTIMATE VEHICLES & TUNING PACK (SELF-ADAPTING)
+// =========================================================================
+
+(function() {
+    console.log("🏎️ Starte Tuning-Werkstatt: Fahrzeug-Extension wird geladen...");
+
+    // 1. INTELLIGENTE KATALOG-ERKENNUNG
+    // Sucht vollautomatisch nach deinem Auto- oder Vehicle-Tab
+    let findVehicleKey = Object.keys(Registry.categories).find(key => 
+        Registry.categories[key].toLowerCase().includes('auto') || 
+        Registry.categories[key].toLowerCase().includes('vehicle')
+    );
+
+    if (!findVehicleKey) {
+        Registry.categories['vehicles'] = '🏎 Auto';
+        findVehicleKey = 'vehicles';
+    }
+
+    // 2. SONDERBAUTEILE IN DIE REGISTRY INJIZIEREN
+    const vehicleBricks = {
+        've_steering_wheel': { name: 'Mini-Lenkrad 1x1', size: [1, 1, 0.8], category: findVehicleKey, shape: 'vehicle_steering' },
+        've_windshield_2x4': { name: 'Windschutzscheibe 2x4', size: [2, 4, 1.5], category: findVehicleKey, shape: 'vehicle_windshield' },
+        've_spoiler_sport': { name: 'Sport-Heckspoiler 1x4', size: [1, 4, 1.2], category: findVehicleKey, shape: 'vehicle_spoiler' },
+        've_exhaust_chrome': { name: 'Chrom-Doppel-Auspuff', size: [1, 1, 1], category: findVehicleKey, shape: 'vehicle_exhaust' },
+        've_engine_block': { name: 'V8-Kompressor-Block', size: [2, 2, 1], category: findVehicleKey, shape: 'vehicle_engine' }
+    };
+    Object.assign(Registry.bricks, vehicleBricks);
+
+    // 3. GEOMETRIE-PIPELINE ERWEITERN (VEHICLE INTERCEPTOR)
+    const priorVehicleFactory = GeometryFactory.create;
+    GeometryFactory.create = function(brickId) {
+        const config = Registry.bricks[brickId];
+        const validVehicleShapes = ['vehicle_steering', 'vehicle_windshield', 'vehicle_spoiler', 'vehicle_exhaust', 'vehicle_engine'];
+
+        if (!config || !validVehicleShapes.includes(config.shape)) {
+            return priorVehicleFactory(brickId); // Weiterleitung an vorherige Packs (Wesen, Natur, Core)
+        }
+
+        const w = config.size[0] * App.spatialUnit;
+        const l = config.size[1] * App.spatialUnit;
+        const h = config.size[2] * App.spatialHeight;
+        const group = new THREE.Group();
+        let geo;
+
+        const studGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12); studGeo.translate(0, 0.04, 0);
+        
+        // Spezial-Material für hochglänzende Chromteile
+        const chromeMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.9, roughness: 0.1 });
+
+        switch(config.shape) {
+            case 'vehicle_steering': // Angewinkeltes Lenkrad
+                const base = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, h*0.4, 8)); base.position.y = (h*0.4)/2; group.add(base);
+                const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, h*0.6, 8));
+                shaft.position.set(0, h*0.5, l*0.1); shaft.rotation.x = 0.5; group.add(shaft);
+                const wheel = new THREE.Mesh(new THREE.TorusGeometry(w*0.28, 0.04, 6, 16));
+                wheel.position.set(0, h*0.75, l*0.22); wheel.rotation.x = 0.5; group.add(wheel);
+                break;
+
+            case 'vehicle_windshield': // Transluzente Keil-Windschutzscheibe (Classic Glass look)
+                const wsShape = new THREE.Shape();
+                wsShape.moveTo(-l/2, -h/2); wsShape.lineTo(l/2, -h/2); wsShape.lineTo(-l/5, h/2); wsShape.lineTo(-l/2, h/2);
+                geo = new THREE.ExtrudeGeometry(wsShape, { depth: w - 0.04, bevelEnabled: false });
+                geo.center(); geo.rotateY(Math.PI / 2); geo.translate(0, h/2, 0);
+                
+                const glassMat = new THREE.MeshStandardMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.5, roughness: 0.1, metalness: 0.1 });
+                const glassMesh = new THREE.Mesh(geo, glassMat); group.add(glassMesh);
+                return group; // Windschutzscheiben haben keine Noppen oben drauf
+
+            case 'vehicle_spoiler': // Heckspoiler auf zwei Stelzen
+                const p1 = new THREE.Mesh(new THREE.BoxGeometry(w*0.12, h*0.8, l*0.12)); p1.position.set(-w*0.35, (h*0.8)/2, -l*0.2); group.add(p1);
+                const p2 = p1.clone(); p2.position.x = w*0.35; group.add(p2);
+                const wing = new THREE.Mesh(new THREE.BoxGeometry(w, h*0.15, l*0.7)); wing.position.set(0, h - (h*0.15)/2, -l*0.15); wing.rotation.x = 0.08; group.add(wing);
+                break;
+
+            case 'vehicle_exhaust': // Verchromtes Doppel-Auspuffrohr
+                const pipe1 = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, l*0.9, 12, 1, true), chromeMat);
+                pipe1.position.set(-w*0.18, h/2, 0); pipe1.rotation.x = Math.PI/2; group.add(pipe1);
+                const pipe2 = pipe1.clone(); pipe2.position.x = w*0.18; group.add(pipe2);
+                // Dunkles Innenrohr für Tiefenwirkung
+                const inner = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.05, 8), new THREE.MeshBasicMaterial({ color: 0x0f172a }));
+                inner.position.set(-w*0.18, h/2, l*0.42); inner.rotation.x = Math.PI/2; group.add(inner);
+                const inner2 = inner.clone(); inner2.position.x = w*0.18; group.add(inner2);
+                break;
+
+            case 'vehicle_engine': // V8 Triebwerk mit verchromten Ventildeckeln
+                const block = new THREE.Mesh(new THREE.BoxGeometry(w-0.05, h*0.6, l-0.05)); block.position.y = (h*0.6)/2; group.add(block);
+                // Schräge Chrom-Zylinderbänke an den Seiten (V-Form)
+                const bankL = new THREE.Mesh(new THREE.BoxGeometry(w*0.25, h*0.2, l*0.8), chromeMat); bankL.position.set(-w*0.25, h*0.6, 0); bankL.rotation.z = -0.4; group.add(bankL);
+                const bankR = new THREE.Mesh(new THREE.BoxGeometry(w*0.25, h*0.2, l*0.8), chromeMat); bankR.position.set(w*0.25, h*0.6, 0); bankR.rotation.z = 0.4; group.add(bankR);
+                // Ansaugstutzen/Scoop oben in der Mitte
+                const scoop = new THREE.Mesh(new THREE.BoxGeometry(w*0.3, h*0.2, l*0.4), chromeMat); scoop.position.set(0, h*0.7, l*0.1); group.add(scoop);
+                break;
+        }
+
+        // Automatische Noppenplatzierung auf der Oberseite (Lenkrad und Triebwerk erhalten Noppen)
+        if(['vehicle_steering', 'vehicle_engine'].includes(config.shape)) {
+            const topStud = new THREE.Mesh(studGeo); topStud.position.set(0, h, 0); group.add(topStud);
+        }
+
+        // Schattenwurf aktivieren
+        group.children.forEach(c => { if(c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+        return group;
+    };
+
+    // 4. NEUE RENNWAGEN-VORLAGE IM RECHTEN PANEL FREISCHALTEN
+    if (window.BlueprintManager) {
+        BlueprintManager.blueprints['vehicle_supercar'] = {
+            name: '🏎️ Formel-Supersportler',
+            blocks: [
+                { type: 'b24', color: 'red', pos: [0, 0, 0], rot: 0 }, // Karosserie Mitte
+                { type: 'b12', color: 'white', pos: [0, 0, 1.5], rot: 0 }, // Front-Nase
+                { type: 've_wheel_big', color: 'dark_iron', pos: [1.2, 0, 1.0], rot: Math.PI/2 }, // Rad Vorne Rechts
+                { type: 've_wheel_big', color: 'dark_iron', pos: [-1.2, 0, 1.0], rot: Math.PI/2 }, // Rad Vorne Links
+                { type: 've_wheel_big', color: 'dark_iron', pos: [1.2, 0, -1.0], rot: Math.PI/2 }, // Rad Hinten Rechts
+                { type: 've_wheel_big', color: 'dark_iron', pos: [-1.2, 0, -1.0], rot: Math.PI/2 }, // Rad Hinten Links
+                { type: 've_steering_wheel', color: 'white', pos: [0, 1.2, 0.5], rot: 0 }, // Cockpit Lenkrad
+                { type: 've_windshield_2x4', color: 'blue', pos: [0, 1.2, 1.0], rot: 0 }, // Frontscheibe
+                { type: 've_engine_block', color: 'white', pos: [0, 1.2, -0.8], rot: 0 }, // V8 Triebwerk hinten
+                { type: 've_spoiler_sport', color: 'red', pos: [0, 1.2, -1.5], rot: 0 }, // Spoiler hinten
+                { type: 've_exhaust_chrome', color: 'white', pos: [0, 0, -1.8], rot: 0 } // Auspuff ganz hinten
+            ]
+        };
+        BlueprintManager.init();
+    }
+
+    // Refresh erzwingen, falls der User bereits im Auto-Tab steht
+    if (window.UIManager && App.activeCategory === findVehicleKey) {
+        UIManager.renderBricks(findVehicleKey);
+    }
+
+    console.log("💚 Tuning-Pack erfolgreich auf die Straße gebracht!");
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - CYBERPUNK & FUTURE TECH PACK (SELF-ADAPTING)
+// =========================================================================
+
+(function() {
+    console.log("🚀 Initialisiere Quantencomputer: Zukunft-Extension wird geladen...");
+
+    // 1. INTELLIGENTE KATALOG-ERKENNUNG
+    // Sucht vollautomatisch nach deinem Zukunft- oder Future-Tab
+    let findFutureKey = Object.keys(Registry.categories).find(key => 
+        Registry.categories[key].toLowerCase().includes('zukunft') || 
+        Registry.categories[key].toLowerCase().includes('future')
+    );
+
+    if (!findFutureKey) {
+        Registry.categories['future'] = '🚀 Zukunft';
+        findFutureKey = 'future';
+    }
+
+    // 2. TECH-BAUTEILE IN DIE REGISTRY INJIZIEREN
+    const futureBricks = {
+        'zf_holo_projector': { name: 'Hologramm-Projektor 1x1', size: [1, 1, 1.2], category: findFutureKey, shape: 'future_hologram' },
+        'zf_hover_pad': { name: 'Anti-Grav Hover-Pad', size: [1, 1, 0.4], category: findFutureKey, shape: 'future_hover' },
+        'zf_shield_gen': { name: 'Hex-Kraftfeld-Generator', size: [1, 2, 2], category: findFutureKey, shape: 'future_shield' },
+        'zf_warp_core': { name: 'Quanten-Warpkern', size: [1, 1, 1.8], category: findFutureKey, shape: 'future_warp' },
+        'zf_teleporter': { name: 'Teleporter-Plattform 2x2', size: [2, 2, 0.33], category: findFutureKey, shape: 'future_teleporter' }
+    };
+    Object.assign(Registry.bricks, futureBricks);
+
+    // 3. GEOMETRIE-PIPELINE ERWEITERN (FUTURE INTERCEPTOR)
+    const priorFutureFactory = GeometryFactory.create;
+    GeometryFactory.create = function(brickId) {
+        const config = Registry.bricks[brickId];
+        const validFutureShapes = ['future_hologram', 'future_hover', 'future_shield', 'future_warp', 'future_teleporter'];
+
+        if (!config || !validFutureShapes.includes(config.shape)) {
+            return priorFutureFactory(brickId); // Weiterleitung an vorherige Stufen
+        }
+
+        const w = config.size[0] * App.spatialUnit;
+        const l = config.size[1] * App.spatialUnit;
+        const h = config.size[2] * App.spatialHeight;
+        const group = new THREE.Group();
+        let geo;
+
+        const studGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12); studGeo.translate(0, 0.04, 0);
+        
+        // SOTA Future-Materialien definieren
+        const energyNeonMat = new THREE.MeshStandardMaterial({ color: 0x06b6d4, emissive: 0x06b6d4, emissiveIntensity: 1.4, transparent: true, opacity: 0.6 });
+        const darkCarbonMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5, metalness: 0.2 });
+
+        switch(config.shape) {
+            case 'future_hologram': // Hologramm-Projektor mit Lichtkegel
+                // Pyramidenstumpf-Basis
+                geo = new THREE.CylinderGeometry(w*0.2, w*0.45, h*0.4, 4); geo.translate(0, (h*0.4)/2, 0); geo.rotateY(Math.PI/4);
+                group.add(new THREE.Mesh(geo, darkCarbonMat));
+                // Schwebender Holo-Lichtkegel
+                const cone = new THREE.Mesh(new THREE.ConeGeometry(w*0.35, h*0.6, 16, 1, true), energyNeonMat);
+                cone.position.set(0, h*0.7, 0); cone.rotation.x = Math.PI; group.add(cone);
+                break;
+
+            case 'future_hover': // Flaches runden Triebwerks-Pad
+                geo = new THREE.CylinderGeometry(w*0.45, w*0.45, h*0.7, 16); geo.translate(0, (h*0.7)/2, 0);
+                group.add(new THREE.Mesh(geo));
+                // Leuchtende Unterseite
+                const glowRing = new THREE.Mesh(new THREE.CylinderGeometry(w*0.38, w*0.38, 0.04, 12), energyNeonMat);
+                glowRing.position.y = 0.01; group.add(glowRing);
+                break;
+
+            case 'future_shield': // Kraftfeld mit stehendem Hexagon-Schild
+                // Technischer Sockel
+                const baseBox = new THREE.Mesh(new THREE.BoxGeometry(w-0.03, h*0.25, l-0.03), darkCarbonMat); baseBox.position.y = (h*0.25)/2; group.add(baseBox);
+                // Vertikales Sechseck (Schild)
+                const shieldGeo = new THREE.CircleGeometry(l*0.45, 6);
+                shieldGeo.rotateY(Math.PI/2); // Aufrecht stellen entlang der Längsachse
+                const shieldMesh = new THREE.Mesh(shieldGeo, energyNeonMat);
+                shieldMesh.position.set(0, h*0.55, 0); group.add(shieldMesh);
+                return group; // Schilde haben keine Noppen oben drauf
+
+            case 'future_warp': // Warpkern-Reaktor
+                // Obere und untere Kappe
+                const capB = new THREE.Mesh(new THREE.CylinderGeometry(w*0.42, w*0.42, h*0.15, 12), darkCarbonMat); capB.position.y = (h*0.15)/2; group.add(capB);
+                const capT = capB.clone(); capT.position.y = h - (h*0.15)/2; group.add(capT);
+                // Äußere Haltestreben (4 Stück)
+                for(let i = 0; i < 4; i++) {
+                    const strut = new THREE.Mesh(new THREE.BoxGeometry(0.06, h*0.7, 0.06), darkCarbonMat);
+                    const angle = (i * Math.PI) / 2;
+                    strut.position.set(Math.cos(angle)*w*0.38, h/2, Math.sin(angle)*w*0.38);
+                    group.add(strut);
+                }
+                // Interner leuchtender Plasma-Zylinder
+                const coreRod = new THREE.Mesh(new THREE.CylinderGeometry(w*0.22, w*0.22, h*0.68, 12), energyNeonMat);
+                coreRod.position.y = h/2; group.add(coreRod);
+                break;
+
+            case 'future_teleporter': // Flache Transporter-Platte
+                geo = new THREE.CylinderGeometry(w*0.48, w*0.48, h, 24); geo.translate(0, h/2, 0);
+                group.add(new THREE.Mesh(geo, darkCarbonMat));
+                // Konzentrische Leuchtringe auf der Oberfläche
+                const ring1 = new THREE.Mesh(new THREE.TorusGeometry(w*0.32, 0.03, 4, 24), energyNeonMat);
+                ring1.rotation.x = Math.PI/2; ring1.position.y = h + 0.01; group.add(ring1);
+                const ring2 = new THREE.Mesh(new THREE.TorusGeometry(w*0.16, 0.02, 4, 16), energyNeonMat);
+                ring2.rotation.x = Math.PI/2; ring2.position.y = h + 0.01; group.add(ring2);
+                break;
+        }
+
+        // Automatische Noppenplatzierung auf der Oberseite (wo mechanisch sinnvoll)
+        if(['future_hologram', 'future_hover', 'future_warp'].includes(config.shape)) {
+            const topStud = new THREE.Mesh(studGeo); topStud.position.set(0, h, 0); group.add(topStud);
+        }
+
+        // Schattenwurf aktivieren
+        group.children.forEach(c => { if(c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+        return group;
+    };
+
+    // 4. NEUE CYBER-PRESET-VORLAGE IM RECHTEN PANEL INITIALISIEREN
+    if (window.BlueprintManager) {
+        BlueprintManager.blueprints['future_scifi_drone'] = {
+            name: '🌌 Neon-Cyber-Aufklärer',
+            blocks: [
+                { type: 'b22', color: 'dark_iron', pos: [0, 0.4, 0], rot: 0 }, // Zentraler Rumpf über dem Boden
+                { type: 'zf_hover_pad', color: 'white', pos: [0, 0, 0], rot: 0 }, // Unteres Schwebe-Triebwerk
+                { type: 'zf_holo_projector', color: 'white', pos: [0, 1.6, 0], rot: 0 }, // Sensor-Auge oben drauf
+                { type: 'zf_shield_gen', color: 'white', pos: [-1.5, 0.4, 0], rot: 0 }, // Linker Flügelschild
+                { type: 'zf_shield_gen', color: 'white', pos: [1.5, 0.4, 0], rot: 0 }, // Rechter Flügelschild
+                { type: 'zf_warp_core', color: 'white', pos: [0, 0.4, -1.0], rot: 0 } // Heck-Reaktor
+            ]
+        };
+        BlueprintManager.init();
+    }
+
+    // Live-UI Refresh erzwingen, falls die Kategorie gerade aktiv im Blickfeld ist
+    if (window.UIManager && App.activeCategory === findFutureKey) {
+        UIManager.renderBricks(findFutureKey);
+    }
+
+    console.log("💚 Zukunft-Technologie erfolgreich in das Studio teleportiert!");
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - MEGA CITY LIFE & INFRASTRUCTURE PACK (SOTA 2026)
+// =========================================================================
+
+(function() {
+    console.log("🏙️ Baue die Metropole auf: Mega-Stadt-Extension wird geladen...");
+
+    // 1. INTELLIGENTE KATALOG-ERKENNUNG
+    // Sucht nach 'stadt', 'city' oder 'town' in deiner Registry
+    let findCityKey = Object.keys(Registry.categories).find(key => 
+        Registry.categories[key].toLowerCase().includes('stadt') || 
+        Registry.categories[key].toLowerCase().includes('city')
+    );
+
+    if (!findCityKey) {
+        Registry.categories['city'] = '🏙️ Stadt';
+        findCityKey = 'city';
+    }
+
+    // 2. 9 DEILLIERTE SONDERBAUTEILE IN DIE REGISTRY INJIZIEREN
+    const cityBricks = {
+        'ci_traffic_light': { name: 'Straßen-Ampel', size: [1, 1, 2.5], category: findCityKey, shape: 'city_traffic' },
+        'ci_street_lamp': { name: 'LED-Straßenlaterne', size: [1, 1, 3], category: findCityKey, shape: 'city_lamp' },
+        'ci_park_bench': { name: 'Parkbank 1x3', size: [1, 3, 0.8], category: findCityKey, shape: 'city_bench' },
+        'ci_trash_can': { name: 'City-Mülleimer', size: [1, 1, 1], category: findCityKey, shape: 'city_trash' },
+        'ci_fire_hydrant': { name: 'Feuerwehr-Hydrant', size: [1, 1, 0.8], category: findCityKey, shape: 'city_hydrant' },
+        'ci_door_frame': { name: 'Hauseingangstür', size: [1, 2, 2], category: findCityKey, shape: 'city_door' },
+        'ci_window_big': { name: 'Raster-Fenster 1x3x2', size: [1, 3, 2], category: findCityKey, shape: 'city_window' },
+        'ci_barrier': { name: 'Baustellen-Bake', size: [0.3, 2, 1], category: findCityKey, shape: 'city_barrier' },
+        'ci_fence_iron': { name: 'Zier-Eisenzaun 1x4', size: [0.2, 4, 1.5], category: findCityKey, shape: 'city_fence' }
+    };
+    Object.assign(Registry.bricks, cityBricks);
+
+    // 3. SEPARATE 3D-GEOMETRIE-PIPELINE FÜR STÄDTISCHE DESIGN-OBJEKTE
+    const priorCityFactory = GeometryFactory.create;
+    GeometryFactory.create = function(brickId) {
+        const config = Registry.bricks[brickId];
+        const validCityShapes = [
+            'city_traffic', 'city_lamp', 'city_bench', 'city_trash', 
+            'city_hydrant', 'city_door', 'city_window', 'city_barrier', 'city_fence'
+        ];
+
+        if (!config || !validCityShapes.includes(config.shape)) {
+            return priorCityFactory(brickId); // Weiterleitung an vorherige Packs
+        }
+
+        const w = config.size[0] * App.spatialUnit;
+        const l = config.size[1] * App.spatialUnit;
+        const h = config.size[2] * App.spatialHeight;
+        const group = new THREE.Group();
+        let geo;
+
+        const studGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12); studGeo.translate(0, 0.04, 0);
+        
+        // City Standard-Materialien
+        const ironMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.6, metalness: 0.5 }); // Dunkles Gusseisen
+        const woodMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.7 }); // Holzstruktur
+        const glassMat = new THREE.MeshStandardMaterial({ color: 0xbae6fd, transparent: true, opacity: 0.4, roughness: 0.1, metalness: 0.1 });
+
+        switch(config.shape) {
+            case 'city_traffic': // Straßen-Ampel mit 3 Leucht-Farbkreisen
+                const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, h*0.7, 10), ironMat); pole.position.y = (h*0.7)/2; group.add(pole);
+                const box = new THREE.Mesh(new THREE.BoxGeometry(w*0.4, h*0.3, l*0.4), ironMat); box.position.set(0, h*0.8, 0); group.add(box);
+                // Lichter: Rot, Gelb, Grün
+                const rL = new THREE.Mesh(new THREE.CircleGeometry(0.08, 12), new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xef4444, emissiveIntensity: 1.2 })); rL.position.set(0, h*0.9, l*0.205); group.add(rL);
+                const yL = new THREE.Mesh(new THREE.CircleGeometry(0.08, 12), new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xfacc15, emissiveIntensity: 1.2 })); yL.position.set(0, h*0.8, l*0.205); group.add(yL);
+                const gL = new THREE.Mesh(new THREE.CircleGeometry(0.08, 12), new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x22c55e, emissiveIntensity: 1.2 })); gL.position.set(0, h*0.7, l*0.205); group.add(gL);
+                break;
+
+            case 'city_lamp': // Geschwungene LED-Laterne
+                const lPole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, h*0.9, 10), ironMat); lPole.position.y = (h*0.9)/2; group.add(lPole);
+                const lArm = new THREE.Mesh(new THREE.BoxGeometry(w*0.5, h*0.06, l*0.2), ironMat); lArm.position.set(w*0.2, h*0.92, 0); group.add(lArm);
+                // Leuchtschirm
+                const glowGmd = new THREE.Mesh(new THREE.BoxGeometry(w*0.25, 0.04, l*0.18), new THREE.MeshStandardMaterial({ color: 0xfef08a, emissive: 0xeab308, emissiveIntensity: 1.5 }));
+                glowGmd.position.set(w*0.38, h*0.9, 0); group.add(glowGmd);
+                break;
+
+            case 'city_bench': // Parkbank aus Eisenstreben und Holzplanken
+                // Beine Links und Rechts
+                for(let z = -0.4; z <= 0.4; z += 0.8) {
+                    const leg = new THREE.Mesh(new THREE.BoxGeometry(w*0.8, h*0.6, 0.08), ironMat); leg.position.set(0, (h*0.6)/2, z*l); group.add(leg);
+                    const backRest = new THREE.Mesh(new THREE.BoxGeometry(0.06, h*0.5, 0.08), ironMat); backRest.position.set(-w*0.35, h*0.7, z*l); backRest.rotation.z = -0.2; group.add(backRest);
+                }
+                // Sitzplatten Holz
+                const plank1 = new THREE.Mesh(new THREE.BoxGeometry(w*0.7, 0.05, l-0.05), woodMat); plank1.position.set(0, h*0.55, 0); group.add(plank1);
+                const plank2 = new THREE.Mesh(new THREE.BoxGeometry(0.05, h*0.4, l-0.05), woodMat); plank2.position.set(-w*0.3, h*0.75, 0); plank2.rotation.z = -0.2; group.add(plank2);
+                return group;
+
+            case 'city_trash': // Öffentlicher Abfalleimer
+                const outer = new THREE.Mesh(new THREE.CylinderGeometry(w*0.35, w*0.35, h*0.8, 12), ironMat); outer.position.y = (h*0.8)/2; group.add(outer);
+                const lid = new THREE.Mesh(new THREE.CylinderGeometry(w*0.38, w*0.38, h*0.1, 12), ironMat); lid.position.y = h*0.85; group.add(lid);
+                // Einwurfloch (schwarzer Kasten)
+                const hole = new THREE.Mesh(new THREE.BoxGeometry(w*0.4, h*0.15, l*0.1), new THREE.MeshBasicMaterial({ color: 0x0f172a })); hole.position.set(0, h*0.65, l*0.22); group.add(hole);
+                break;
+
+            case 'city_hydrant': // Roter Klötzchen-Hydrant
+                const bodyMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.4 }); // Signalrot
+                const mainBody = new THREE.Mesh(new THREE.CylinderGeometry(w*0.25, w*0.25, h*0.8, 12), bodyMat); mainBody.position.y = (h*0.8)/2; group.add(mainBody);
+                const capT = new THREE.Mesh(new THREE.SphereGeometry(w*0.25, 12, 12), bodyMat); capT.position.y = h*0.8; group.add(capT);
+                // Seitliche Ventile (Silberne Zylinder)
+                const vL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.1, 8), chromeMat); vL.position.set(-w*0.25, h*0.5, 0); vL.rotation.z = Math.PI/2; group.add(vL);
+                const vR = vL.clone(); vR.position.x = w*0.25; group.add(vR);
+                break;
+
+            case 'city_door': // Hauseingangstür mit Rahmen
+                const frame = new THREE.Mesh(new THREE.BoxGeometry(w-0.03, h, l-0.03), ironMat); frame.position.y = h/2; group.add(frame);
+                // Türblattausschnitt durch Glasscheibe füllen
+                const doorGlass = new THREE.Mesh(new THREE.BoxGeometry(w*0.05, h*0.85, l*0.75), glassMat); doorGlass.position.set(0, h/2, 0); group.add(doorGlass);
+                // Klinke (Goldener Punkt)
+                const knob = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.1 })); knob.position.set(w*0.06, h*0.45, l*0.3); group.add(knob);
+                return group;
+
+            case 'city_window': // Raster-Fenster 1x3x2
+                const wFrame = new THREE.Mesh(new THREE.BoxGeometry(w-0.03, h, l-0.03), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4 })); wFrame.position.y = h/2; group.add(wFrame);
+                const wGlass = new THREE.Mesh(new THREE.BoxGeometry(w*0.1, h*0.88, l*0.9), glassMat); wGlass.position.set(0, h/2, 0); group.add(wGlass);
+                // Mittelkreuz (Sprossenfenster)
+                const sprosse = new THREE.Mesh(new THREE.BoxGeometry(w*0.12, h*0.88, 0.05), new THREE.MeshStandardMaterial({ color: 0xf8fafc })); sprosse.position.set(0, h/2, 0); group.add(sprosse);
+                return group;
+
+            case 'city_barrier': // Rot-weiße Baustellen-Bake
+                const barrierMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.5 });
+                const board = new THREE.Mesh(new THREE.BoxGeometry(w, h*0.6, l-0.05), barrierMat); board.position.y = h*0.6; group.add(board);
+                // Füße unten
+                const foot1 = new THREE.Mesh(new THREE.BoxGeometry(w*3, h*0.2, l*0.15), ironMat); foot1.position.set(0, h*0.1, -l*0.4); group.add(foot1);
+                const foot2 = foot1.clone(); foot2.position.z = l*0.4; group.add(foot2);
+                // Aufgemalte rote Streifen (Simuliert durch 2 dünne Platten)
+                const stripeMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+                const st1 = new THREE.Mesh(new THREE.BoxGeometry(w+0.01, h*0.12, l*0.2), stripeMat); st1.position.set(0, h*0.7, -l*0.2); group.add(st1);
+                const st2 = st1.clone(); st2.position.set(0, h*0.5, l*0.2); group.add(st2);
+                return group;
+
+            case 'city_fence': // Schmiedeeiserner Zaun
+                const railT = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, l), ironMat); railT.position.y = h - 0.04; group.add(railT);
+                const railB = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, l), ironMat); railB.position.y = h*0.1; group.add(railB);
+                // Vertikale Zaunstreben gießen (5 Stäbe nebeneinander)
+                for (let i = -0.4; i <= 0.4; i += 0.2) {
+                    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, h*0.85, 6), ironMat);
+                    bar.position.set(0, h*0.5, i * l); group.add(bar);
+                    // Kleine Spitze oben auf dem Stab
+                    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.1, 6), ironMat);
+                    spike.position.set(0, h, i * l); group.add(spike);
+                }
+                return group;
+        }
+
+        // Automatische Noppenplatzierung auf der Oberseite (Wo anbaubar)
+        if(['city_traffic', 'city_lamp', 'city_trash', 'city_hydrant'].includes(config.shape)) {
+            const topStud = new THREE.Mesh(studGeo); topStud.position.set(0, h, 0); group.add(topStud);
+        }
+
+        // Schattenaktivierung für die Tiefenwirkung im Stadtbild
+        group.children.forEach(c => { if(c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+        return group;
+    };
+
+    // 4. NEUE STADT-VORLAGE IM RECHTEN SIDEBAR-PANEL ERSTELLEN
+    if (window.BlueprintManager) {
+        BlueprintManager.blueprints['city_bus_stop'] = {
+            name: '🏙️ Moderne Bushaltestelle',
+            blocks: [
+                { type: 'p44', color: 'dark_iron', pos: [0, 0, 0], rot: 0 }, // Gehwegplatte
+                { type: 'ci_window_big', color: 'white', pos: [-1.5, 0, -1.0], rot: Math.PI/2 }, // Rückwand Fenster 1
+                { type: 'ci_window_big', color: 'white', pos: [-1.5, 0, 1.0], rot: Math.PI/2 }, // Rückwand Fenster 2
+                { type: 'ci_door_frame', color: 'white', pos: [1.5, 0, 0], rot: 0 }, // Seitlicher Einstieg
+                { type: 'ci_park_bench', color: 'white', pos: [-0.5, 0, 0], rot: Math.PI/2 }, // Wartebank innen
+                { type: 'ci_street_lamp', color: 'white', pos: [1.8, 0, 1.8], rot: 0 }, // Beleuchtung außen
+                { type: 'ci_trash_can', color: 'dark_iron', pos: [1.8, 0, -1.8], rot: 0 } // Mülleimer daneben
+            ]
+        };
+        BlueprintManager.init();
+    }
+
+    // Live-Update der Grid-Vorschau erzwingen
+    if (window.UIManager && App.activeCategory === findCityKey) {
+        UIManager.renderBricks(findCityKey);
+    }
+
+    console.log("💚 Mega Stadt-Erweiterung erfolgreich im Lego-Baukasten fundamentiert!");
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - ADVANCED MOBILE & TABLET TOUCH OPTIMIZER (SOTA 2026)
+// =========================================================================
+
+(function() {
+    console.log("📱 Mobilmachung eingeleitet: Optimiere UI & Touch-Gesten für Kinderhände...");
+
+    // 1. DYNAMISCHE CSS-INJEKTION FÜR MOBILE OVERLAYS & GROSSE TOUCH-TARGETS
+    const style = document.createElement('style');
+    style.innerHTML = `
+        /* Responsive Overrides für Handys und Tablets */
+        @media (max-width: 1023px) {
+            /* Sidebars zu echten, flüssigen Overlay-Schubladen umbauen */
+            #sidebar-left, #sidebar-right {
+                position: fixed !important;
+                top: 0 !important;
+                bottom: 0 !important;
+                height: 100vh !important;
+                z-index: 40 !important;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+                background-color: white !important;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            }
+            #sidebar-left { left: 0 !important; width: 85% !important; max-width: 340px !important; }
+            #sidebar-right { right: 0 !important; width: 85% !important; max-width: 320px !important; }
+            
+            /* Farbwähler vergrößern für dickere Kinderfinger (Mindestmaß 48px) */
+            #color-grid button {
+                height: 52px !important;
+                width: 52px !important;
+                margin: 0 auto !important;
+            }
+            
+            /* Bausteine-Auswahlliste daumenfreundlich strecken */
+            #brick-list > div {
+                padding: 1rem !important;
+                margin-bottom: 0.5rem !important;
+            }
+        }
+        
+        /* Sanfter Abdunklungs-Hintergrund bei geöffneten mobilen Menüs */
+        .mobile-backdrop {
+            position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(2px); z-index: 30; transition: opacity 0.2s ease;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // STATE-ENGINE FÜR TOUCH-STEUERUNG
+    window.TouchOptimizer = {
+        touchMode: 'camera', // 'camera' (nur gucken/drehen) oder 'action' (bauen/färben/löschen)
+        isMobileLayout: window.innerWidth < 1024,
+
+        init() {
+            this.createMobileMenuToggles();
+            this.createInteractionSwitcher();
+            this.createFullscreenButton();
+            this.hookEngineTouchControls();
+            this.listenToResize();
+            this.applyInitialState();
+        },
+
+        // 2. ERSTELLUNG DER MOBILEN SCHUBLADEN-ÖFFNER (LINKS & RECHTS TABS)
+        createMobileMenuToggles() {
+            // Backdrop-Element erstellen
+            const backdrop = document.createElement('div');
+            backdrop.id = 'mobile-menu-backdrop';
+            backdrop.className = 'mobile-backdrop hidden';
+            backdrop.onclick = () => TouchOptimizer.closeAllMenus();
+            document.body.appendChild(backdrop);
+
+            // Button für Steine-Menü (Unten Links schwebend)
+            const toggleLeft = document.createElement('button');
+            toggleLeft.id = 'toggle-menu-left';
+            toggleLeft.className = 'lg:hidden fixed bottom-6 left-6 z-30 w-14 h-14 bg-white border border-slate-200 text-slate-700 rounded-2xl shadow-xl flex items-center justify-center text-xl cursor-pointer';
+            toggleLeft.innerHTML = '<i class="fa-solid fa-shapes"></i>';
+            toggleLeft.onclick = () => this.toggleMenu('left');
+            document.body.appendChild(toggleLeft);
+
+            // Button für Farben-Menü (Unten Rechts schwebend)
+            const toggleRight = document.createElement('button');
+            toggleRight.id = 'toggle-menu-right';
+            toggleRight.className = 'lg:hidden fixed bottom-6 right-6 z-30 w-14 h-14 bg-white border border-slate-200 text-slate-700 rounded-2xl shadow-xl flex items-center justify-center text-xl cursor-pointer';
+            toggleRight.innerHTML = '<i class="fa-solid fa-palette"></i>';
+            toggleRight.onclick = () => this.toggleMenu('right');
+            document.body.appendChild(toggleRight);
+        },
+
+        toggleMenu(side) {
+            const panel = document.getElementById(`sidebar-${side==='left'?'left':'right'}`);
+            const otherPanel = document.getElementById(`sidebar-${side==='left'?'right':'left'}`);
+            const backdrop = document.getElementById('mobile-menu-backdrop');
+
+            otherPanel.classList.add(side==='left'?'translate-x-full':'-translate-x-full'); // Anderes Menü schließen
+
+            if (panel.classList.contains(side==='left'?'-translate-x-full':'translate-x-full')) {
+                panel.classList.remove(side==='left'?'-translate-x-full':'translate-x-full');
+                backdrop.classList.remove('hidden');
+            } else {
+                panel.classList.add(side==='left'?'-translate-x-full':'translate-x-full');
+                backdrop.classList.add('hidden');
+            }
+            SoundFX.play('click');
+        },
+
+        closeAllMenus() {
+            document.getElementById('sidebar-left').classList.add('-translate-x-full');
+            document.getElementById('sidebar-right').classList.add('translate-x-full');
+            document.getElementById('mobile-menu-backdrop').classList.add('hidden');
+        },
+
+        // 3. ERSTELLUNG DES MASSIVEN KAMERA VS. BAUEN SCHALTERS
+        createInteractionSwitcher() {
+            const switcher = document.createElement('div');
+            switcher.id = 'mobile-interaction-mode-bar';
+            switcher.className = 'lg:hidden fixed top-24 left-1/2 transform -translate-x-1/2 z-30 bg-slate-900/90 p-1.5 rounded-2xl shadow-2xl flex items-center border border-slate-700/50 backdrop-blur';
+            
+            switcher.innerHTML = `
+                <button id="touch-btn-camera" onclick="TouchOptimizer.setTouchMode('camera')" class="px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md">
+                    <i class="fa-solid fa-camera text-sm"></i> DREHEN
+                </button>
+                <button id="touch-btn-action" onclick="TouchOptimizer.setTouchMode('action')" class="px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-bolt text-sm"></i> BAUEN
+                </button>
+            `;
+            document.body.appendChild(switcher);
+        },
+
+        setTouchMode(mode) {
+            this.touchMode = mode;
+            const btnCam = document.getElementById('touch-btn-camera');
+            const btnAct = document.getElementById('touch-btn-action');
+
+            if (mode === 'camera') {
+                btnCam.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md";
+                btnAct.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white";
+                Engine3D.controls.enabled = true; // OrbitControls einschalten
+                if(Engine3D.previewMesh) Engine3D.previewMesh.visible = false;
+            } else {
+                btnAct.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md";
+                btnCam.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white";
+                Engine3D.controls.enabled = false; // OrbitControls sperren, damit Wischen Steine setzt!
+                if(Engine3D.previewMesh && App.activeTool === 'place') Engine3D.previewMesh.visible = true;
+            }
+            SoundFX.play('click');
+        },
+
+        // 4. FULLSCREEN API-INTEGRATION IM HEADER
+        createFullscreenButton() {
+            const headerControls = document.querySelector('header > div.flex.items-center.space-x-2');
+            if (!headerControls) return;
+
+            const divider = document.createElement('div');
+            divider.className = "h-6 w-[1px] bg-slate-200 mx-1 hidden md:block";
+            headerControls.appendChild(divider);
+
+            const fsBtn = document.createElement('button');
+            fsBtn.className = "w-11 h-11 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl transition-all flex items-center justify-center text-lg border border-slate-200 cursor-pointer";
+            fsBtn.title = "Vollbildmodus umschalten";
+            fsBtn.innerHTML = '<i class="fa-solid fa-expand"></i>';
+            fsBtn.onclick = () => {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen();
+                    fsBtn.innerHTML = '<i class="fa-solid fa-compress"></i>';
+                } else {
+                    document.exitFullscreen();
+                    fsBtn.innerHTML = '<i class="fa-solid fa-expand"></i>';
+                }
+                SoundFX.play('click');
+            };
+            headerControls.appendChild(fsBtn);
+        },
+
+        // 5. INTERZEPTION DER TOUCH-PIPELINE GEGEN ACCIDENTAL PLACEMENTS
+        hookEngineTouchControls() {
+            // Pointerclick abfangen: Klicks blockieren, wenn wir im reinen Kamera-Modus auf dem Handy sind
+            const basePointerClick = Engine3D.onPointerClick;
+            Engine3D.onPointerClick = function(e) {
+                if (TouchOptimizer.isMobileLayout && TouchOptimizer.touchMode === 'camera') {
+                    return; // Im Kamera-Modus wird durch Taps kein Stein gebaut oder zerstört!
+                }
+                basePointerClick.call(Engine3D, e);
+            };
+
+            // MouseMove/TouchMove abfangen: Vorschau-Stein folgt dem Finger nur im Bauen-Modus
+            const baseMouseMove = Engine3D.onMouseMove;
+            Engine3D.onMouseMove = function(e) {
+                if (TouchOptimizer.isMobileLayout && TouchOptimizer.touchMode === 'camera') {
+                    if(Engine3D.previewMesh) Engine3D.previewMesh.visible = false;
+                    return;
+                }
+                baseMouseMove.call(Engine3D, e);
+            };
+
+            // Beim Wechseln der Tools über die untere Werkzeugleiste automatisch in den richtigen Touch-Modus schalten
+            const baseSetTool = App.setTool;
+            App.setTool = function(tool) {
+                baseSetTool.call(App, tool);
+                if (TouchOptimizer.isMobileLayout) {
+                    if (tool === 'place' || tool === 'paint' || tool === 'delete') {
+                        TouchOptimizer.setTouchMode('action'); // Sofort in Action-Modus wechseln
+                    }
+                }
+                TouchOptimizer.closeAllMenus();
+            };
+        },
+
+        listenToResize() {
+            window.addEventListener('resize', () => {
+                const isMobileNow = window.innerWidth < 1024;
+                if (isMobileNow !== this.isMobileLayout) {
+                    this.isMobileLayout = isMobileNow;
+                    this.applyInitialState();
+                }
+            });
+        },
+
+        applyInitialState() {
+            const bar = document.getElementById('mobile-interaction-mode-bar');
+            if (this.isMobileLayout) {
+                if(bar) bar.classList.remove('hidden');
+                this.setTouchMode('camera'); // Standardmäßig mit Drehen starten auf Mobile
+                this.closeAllMenus();
+            } else {
+                if(bar) bar.classList.add('hidden');
+                Engine3D.controls.enabled = true;
+                if(Engine3D.previewMesh) Engine3D.previewMesh.visible = (App.activeTool === 'place');
+                // Auf Desktop Menüs wieder normal einblenden
+                document.getElementById('sidebar-left').classList.remove('-translate-x-full');
+                document.getElementById('sidebar-right').classList.remove('translate-x-full');
+            }
+        }
+    };
+
+    // Starten des mobilen Usability-Systems
+    TouchOptimizer.init();
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - MOBILE HEADER OPTIMIZER (SOTA 2026)
+// =========================================================================
+
+(function() {
+    console.log("🏙️ Bereinige Kontrollzentrum: Headerbar wird für Smartphones optimiert...");
+
+    // 1. EXISTIERENDE BUTTONS AUF MOBILE ETWAS REDUZIEREN
+    const headerControls = document.querySelector('header > div.flex.items-center.space-x-2');
+    if (headerControls) {
+        Array.from(headerControls.children).forEach(child => {
+            // Wir prüfen anhand des onclick-Attributs oder Inhalts, ob es sich um Undo/Redo handelt
+            const isUndo = child.outerHTML.includes('App.undo()');
+            const isRedo = child.outerHTML.includes('App.redo()');
+            
+            // Alle Knöpfe außer Undo und Redo blenden wir unterhalb des Desktop-Breakpoints (1024px) aus
+            if (!isUndo && !isRedo) {
+                child.classList.add('hidden', 'lg:inline-flex', 'lg:flex', 'lg:block');
+            }
+        });
+    }
+
+    // 2. ERSTELLUNG DES MOBILEN AKTIONS-DROPDOWNS (FIXED OVERLAY)
+    const dropdown = document.createElement('div');
+    dropdown.id = 'mobile-header-dropdown';
+    dropdown.className = "hidden fixed top-20 right-6 w-64 bg-white/95 border border-slate-200 rounded-2xl shadow-2xl p-2 z-50 flex flex-col gap-1 backdrop-blur-md transition-all";
+    
+    // Die Optionen greifen direkt auf die nativen Core-Funktionen und Inputs der App zu
+    dropdown.innerHTML = `
+        <button onclick="document.getElementById('import-file').click(); document.getElementById('mobile-header-dropdown').classList.add('hidden'); SoundFX.play('click');" class="w-full px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-xl flex items-center transition-colors cursor-pointer">
+            <i class="fa-solid fa-upload text-slate-400 w-6 text-base mr-2"></i> Modell öffnen (Import)
+        </button>
+        <button onclick="App.exportJSON(); document.getElementById('mobile-header-dropdown').classList.add('hidden');" class="w-full px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-xl flex items-center transition-colors cursor-pointer">
+            <i class="fa-solid fa-download text-slate-400 w-6 text-base mr-2"></i> Modell speichern (Export)
+        </button>
+        <button id="mobile-header-fs" class="w-full px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-xl flex items-center transition-colors cursor-pointer">
+            <i class="fa-solid fa-expand text-slate-400 w-6 text-base mr-2"></i> Vollbild umschalten
+        </button>
+        <div class="h-[1px] bg-slate-100 my-1 mx-2"></div>
+        <button onclick="App.clearScene(); document.getElementById('mobile-header-dropdown').classList.add('hidden');" class="w-full px-4 py-3 text-left text-sm font-semibold text-rose-600 hover:bg-rose-50 active:bg-rose-100 rounded-xl flex items-center transition-colors cursor-pointer">
+            <i class="fa-solid fa-trash-can text-rose-400 w-6 text-base mr-2"></i> Spielfeld leeren
+        </button>
+    `;
+    document.body.appendChild(dropdown);
+
+    // Fullscreen-Logik für den mobilen Menüpunkt verdrahten
+    dropdown.querySelector('#mobile-header-fs').onclick = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else {
+            document.exitFullscreen();
+        }
+        document.getElementById('mobile-header-dropdown').classList.add('hidden');
+        SoundFX.play('click');
+    };
+
+    // 3. ERSTELLUNG DES GEARTETEN TRIGGER-BUTTONS (DREI PUNKTE)
+    const menuBtn = document.createElement('button');
+    menuBtn.id = 'mobile-header-more-btn';
+    menuBtn.className = "w-11 h-11 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-700 rounded-xl transition-all flex items-center justify-center text-lg border border-slate-200 cursor-pointer lg:hidden";
+    menuBtn.title = "Mehr Optionen";
+    menuBtn.innerHTML = '<i class="fa-solid fa-ellipsis-vertical"></i>';
+    
+    // Toggle-Mechanismus
+    menuBtn.onclick = (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('hidden');
+        SoundFX.play('click');
+    };
+    if (headerControls) {
+        headerControls.appendChild(menuBtn);
+    }
+
+    // 4. SMARTES AUTO-CLOSE BEI KLICKS AUSSERHALB
+    document.addEventListener('pointerdown', (e) => {
+        if (!dropdown.contains(e.target) && !menuBtn.contains(e.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+})();
+
+// =========================================================================
+// BRICKCRAFT STUDIO - MOBILE OPTIMIZER (REFINED VIEWPORT LAYOUT)
+// =========================================================================
+
+(function() {
+    console.log("📱 Optimiere mobile Ansichten und korrigiere Überlagerungen...");
+
+    // 1. NATIVE STYLES ERGÄNZEN
+    const style = document.createElement('style');
+    style.innerHTML = `
+        @media (max-width: 1023px) {
+            #sidebar-left, #sidebar-right {
+                position: fixed !important; top: 0 !important; bottom: 0 !important; height: 100vh !important;
+                z-index: 40 !important; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25) !important;
+                background-color: white !important; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            }
+            #sidebar-left { left: 0 !important; width: 85% !important; max-width: 340px !important; }
+            #sidebar-right { right: 0 !important; width: 85% !important; max-width: 320px !important; }
+            #color-grid button { height: 52px !important; width: 52px !important; margin: 0 auto !important; }
+            #brick-list > div { padding: 1rem !important; margin-bottom: 0.5rem !important; }
+        }
+        .mobile-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(2px); z-index: 30; }
+    `;
+    document.head.appendChild(style);
+
+    // FUNKTIONEN FÜR DAS NEUE HEADER-DROPDOWN BEREITSTELLEN
+    App.toggleMobileMenu = function(e) {
+        if(e) e.stopPropagation();
+        const dd = document.getElementById('mobile-action-dropdown');
+        if(dd) dd.classList.toggle('hidden');
+    };
+
+    document.addEventListener('pointerdown', (e) => {
+        const dd = document.getElementById('mobile-action-dropdown');
+        const trigger = document.getElementById('mobile-more-trigger');
+        if (dd && !dd.contains(e.target) && trigger && !trigger.contains(e.target)) {
+            dd.classList.add('hidden');
+        }
+    });
+
+    window.TouchOptimizer = {
+        touchMode: 'camera',
+        isMobileLayout: window.innerWidth < 1024,
+
+        init() {
+            this.createMobileMenuToggles();
+            this.createInteractionSwitcher();
+            this.hookEngineTouchControls();
+            this.listenToResize();
+            this.applyInitialState();
+        },
+
+        createMobileMenuToggles() {
+            if(!document.getElementById('mobile-menu-backdrop')) {
+                const backdrop = document.createElement('div');
+                backdrop.id = 'mobile-menu-backdrop';
+                backdrop.className = 'mobile-backdrop hidden';
+                backdrop.onclick = () => TouchOptimizer.closeAllMenus();
+                document.body.appendChild(backdrop);
+            }
+
+            if(!document.getElementById('toggle-menu-left')) {
+                const toggleLeft = document.createElement('button');
+                toggleLeft.id = 'toggle-menu-left';
+                toggleLeft.className = 'lg:hidden fixed bottom-6 left-6 z-30 w-14 h-14 bg-white border border-slate-200 text-slate-700 rounded-2xl shadow-xl flex items-center justify-center text-xl cursor-pointer';
+                toggleLeft.innerHTML = '<i class="fa-solid fa-shapes"></i>';
+                toggleLeft.onclick = () => this.toggleMenu('left');
+                document.body.appendChild(toggleLeft);
+            }
+
+            if(!document.getElementById('toggle-menu-right')) {
+                const toggleRight = document.createElement('button');
+                toggleRight.id = 'toggle-menu-right';
+                toggleRight.className = 'lg:hidden fixed bottom-6 right-6 z-30 w-14 h-14 bg-white border border-slate-200 text-slate-700 rounded-2xl shadow-xl flex items-center justify-center text-xl cursor-pointer';
+                toggleRight.innerHTML = '<i class="fa-solid fa-palette"></i>';
+                toggleRight.onclick = () => this.toggleMenu('right');
+                document.body.appendChild(toggleRight);
+            }
+        },
+
+        toggleMenu(side) {
+            const panel = document.getElementById(`sidebar-${side==='left'?'left':'right'}`);
+            const otherPanel = document.getElementById(`sidebar-${side==='left'?'right':'left'}`);
+            const backdrop = document.getElementById('mobile-menu-backdrop');
+            otherPanel.classList.add(side==='left'?'translate-x-full':'-translate-x-full');
+            if (panel.classList.contains(side==='left'?'-translate-x-full':'translate-x-full')) {
+                panel.classList.remove(side==='left'?'-translate-x-full':'translate-x-full');
+                backdrop.classList.remove('hidden');
+            } else {
+                panel.classList.add(side==='left'?'-translate-x-full':'translate-x-full');
+                backdrop.classList.add('hidden');
+            }
+            SoundFX.play('click');
+        },
+
+        closeAllMenus() {
+            document.getElementById('sidebar-left').classList.add('-translate-x-full');
+            document.getElementById('sidebar-right').classList.add('translate-x-full');
+            const bd = document.getElementById('mobile-menu-backdrop');
+            if(bd) bd.classList.add('hidden');
+        },
+
+        // KORREKTUR: POSITIONIERT DIE BAR JETZT UNTEN (UNTEN-24) ÜBER DER WERKZEUGLEISTE
+        createInteractionSwitcher() {
+            let switcher = document.getElementById('mobile-interaction-mode-bar');
+            if(!switcher) {
+                switcher = document.createElement('div');
+                switcher.id = 'mobile-interaction-mode-bar';
+                document.body.appendChild(switcher);
+            }
+            switcher.className = 'lg:hidden fixed bottom-24 left-1/2 transform -translate-x-1/2 z-30 bg-slate-900/95 p-1.5 rounded-2xl shadow-2xl flex items-center border border-slate-700/50 backdrop-blur';
+            switcher.innerHTML = `
+                <button id="touch-btn-camera" onclick="TouchOptimizer.setTouchMode('camera')" class="px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md">
+                    <i class="fa-solid fa-camera text-sm"></i> DREHEN
+                </button>
+                <button id="touch-btn-action" onclick="TouchOptimizer.setTouchMode('action')" class="px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-bolt text-sm"></i> BAUEN
+                </button>
+            `;
+        },
+
+        setTouchMode(mode) {
+            this.touchMode = mode;
+            const btnCam = document.getElementById('touch-btn-camera');
+            const btnAct = document.getElementById('touch-btn-action');
+            if(!btnCam || !btnAct) return;
+
+            if (mode === 'camera') {
+                btnCam.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md";
+                btnAct.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white";
+                Engine3D.controls.enabled = true;
+                if(Engine3D.previewMesh) Engine3D.previewMesh.visible = false;
+            } else {
+                btnAct.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md";
+                btnCam.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white";
+                Engine3D.controls.enabled = false;
+                if(Engine3D.previewMesh && App.activeTool === 'place') Engine3D.previewMesh.visible = true;
+            }
+            SoundFX.play('click');
+        },
+
+        hookEngineTouchControls() {
+            const basePointerClick = Engine3D.onPointerClick;
+            Engine3D.onPointerClick = function(e) {
+                if (TouchOptimizer.isMobileLayout && TouchOptimizer.touchMode === 'camera') return;
+                basePointerClick.call(Engine3D, e);
+            };
+
+            const baseMouseMove = Engine3D.onMouseMove;
+            Engine3D.onMouseMove = function(e) {
+                if (TouchOptimizer.isMobileLayout && TouchOptimizer.touchMode === 'camera') {
+                    if(Engine3D.previewMesh) Engine3D.previewMesh.visible = false;
+                    return;
+                }
+                baseMouseMove.call(Engine3D, e);
+            };
+
+            const baseSetTool = App.setTool;
+            App.setTool = function(tool) {
+                baseSetTool.call(App, tool);
+                if (TouchOptimizer.isMobileLayout && ['place', 'paint', 'delete'].includes(tool)) {
+                    TouchOptimizer.setTouchMode('action');
+                }
+                TouchOptimizer.closeAllMenus();
+            };
+        },
+
+        listenToResize() {
+            window.addEventListener('resize', () => {
+                const isMobileNow = window.innerWidth < 1024;
+                if (isMobileNow !== this.isMobileLayout) {
+                    this.isMobileLayout = isMobileNow;
+                    this.applyInitialState();
+                }
+            });
+        },
+
+        applyInitialState() {
+            const bar = document.getElementById('mobile-interaction-mode-bar');
+            if (this.isMobileLayout) {
+                if(bar) bar.classList.remove('hidden');
+                this.setTouchMode('camera');
+                this.closeAllMenus();
+            } else {
+                if(bar) bar.classList.add('hidden');
+                Engine3D.controls.enabled = true;
+                if(Engine3D.previewMesh) Engine3D.previewMesh.visible = (App.activeTool === 'place');
+                document.getElementById('sidebar-left').classList.remove('-translate-x-full');
+                document.getElementById('sidebar-right').classList.remove('translate-x-full');
+            }
+        }
+    };
+
+    TouchOptimizer.init();
+})();
+
+    </script>
+</body>
+</html>
