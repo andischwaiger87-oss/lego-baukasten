@@ -2755,122 +2755,117 @@
 })();
 
 // =========================================================================
-// BRICKCRAFT STUDIO - ADVANCED MOBILE & TABLET TOUCH OPTIMIZER (SOTA 2026)
+// BRICKCRAFT STUDIO - MOBILE OPTIMIZER (ULTRA DEFENSIVE SHIELD VERSION)
 // =========================================================================
 
 (function() {
-    console.log("📱 Mobilmachung eingeleitet: Optimiere UI & Touch-Gesten für Kinderhände...");
+    console.log("📱 Aktiviere mobilen Optimierer mit Ultra-Defensiv-Schutz...");
 
-    // 1. DYNAMISCHE CSS-INJEKTION FÜR MOBILE OVERLAYS & GROSSE TOUCH-TARGETS
+    // 1. NATIVE STYLES ERGÄNZEN
     const style = document.createElement('style');
     style.innerHTML = `
-        /* Responsive Overrides für Handys und Tablets */
         @media (max-width: 1023px) {
-            /* Sidebars zu echten, flüssigen Overlay-Schubladen umbauen */
             #sidebar-left, #sidebar-right {
-                position: fixed !important;
-                top: 0 !important;
-                bottom: 0 !important;
-                height: 100vh !important;
-                z-index: 40 !important;
-                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
-                background-color: white !important;
-                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                position: fixed !important; top: 0 !important; bottom: 0 !important; height: 100vh !important;
+                z-index: 40 !important; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25) !important;
+                background-color: white !important; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
             }
             #sidebar-left { left: 0 !important; width: 85% !important; max-width: 340px !important; }
             #sidebar-right { right: 0 !important; width: 85% !important; max-width: 320px !important; }
-            
-            /* Farbwähler vergrößern für dickere Kinderfinger (Mindestmaß 48px) */
-            #color-grid button {
-                height: 52px !important;
-                width: 52px !important;
-                margin: 0 auto !important;
-            }
-            
-            /* Bausteine-Auswahlliste daumenfreundlich strecken */
-            #brick-list > div {
-                padding: 1rem !important;
-                margin-bottom: 0.5rem !important;
-            }
+            #color-grid button { height: 52px !important; width: 52px !important; margin: 0 auto !important; }
+            #brick-list { display: grid !important; }
         }
-        
-        /* Sanfter Abdunklungs-Hintergrund bei geöffneten mobilen Menüs */
-        .mobile-backdrop {
-            position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4);
-            backdrop-filter: blur(2px); z-index: 30; transition: opacity 0.2s ease;
-        }
+        .mobile-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(2px); z-index: 30; }
     `;
     document.head.appendChild(style);
 
-    // STATE-ENGINE FÜR TOUCH-STEUERUNG
+    // FUNKTIONEN FÜR DAS HEADER-DROPDOWN BEREITSTELLEN
+    App.toggleMobileMenu = function(e) {
+        if(e) e.stopPropagation();
+        const dd = document.getElementById('mobile-action-dropdown');
+        if(dd) dd.classList.toggle('hidden');
+    };
+
+    document.addEventListener('pointerdown', (e) => {
+        const dd = document.getElementById('mobile-action-dropdown');
+        const trigger = document.getElementById('mobile-more-trigger');
+        if (dd && !dd.contains(e.target) && trigger && !trigger.contains(e.target)) {
+            dd.classList.add('hidden');
+        }
+    });
+
     window.TouchOptimizer = {
-        touchMode: 'camera', // 'camera' (nur gucken/drehen) oder 'action' (bauen/färben/löschen)
+        touchMode: 'camera',
         isMobileLayout: window.innerWidth < 1024,
 
         init() {
             this.createMobileMenuToggles();
             this.createInteractionSwitcher();
-            this.createFullscreenButton();
             this.hookEngineTouchControls();
             this.listenToResize();
             this.applyInitialState();
         },
 
-        // 2. ERSTELLUNG DER MOBILEN SCHUBLADEN-ÖFFNER (LINKS & RECHTS TABS)
         createMobileMenuToggles() {
-            // Backdrop-Element erstellen
-            const backdrop = document.createElement('div');
-            backdrop.id = 'mobile-menu-backdrop';
-            backdrop.className = 'mobile-backdrop hidden';
-            backdrop.onclick = () => TouchOptimizer.closeAllMenus();
-            document.body.appendChild(backdrop);
+            if(!document.getElementById('mobile-menu-backdrop')) {
+                const backdrop = document.createElement('div');
+                backdrop.id = 'mobile-menu-backdrop';
+                backdrop.className = 'mobile-backdrop hidden';
+                backdrop.onclick = () => TouchOptimizer.closeAllMenus();
+                document.body.appendChild(backdrop);
+            }
 
-            // Button für Steine-Menü (Unten Links schwebend)
-            const toggleLeft = document.createElement('button');
-            toggleLeft.id = 'toggle-menu-left';
-            toggleLeft.className = 'lg:hidden fixed bottom-6 left-6 z-30 w-14 h-14 bg-white border border-slate-200 text-slate-700 rounded-2xl shadow-xl flex items-center justify-center text-xl cursor-pointer';
-            toggleLeft.innerHTML = '<i class="fa-solid fa-shapes"></i>';
-            toggleLeft.onclick = () => this.toggleMenu('left');
-            document.body.appendChild(toggleLeft);
+            if(!document.getElementById('toggle-menu-left')) {
+                const toggleLeft = document.createElement('button');
+                toggleLeft.id = 'toggle-menu-left';
+                toggleLeft.className = 'lg:hidden fixed bottom-6 left-6 z-30 w-14 h-14 bg-white border border-slate-200 text-slate-700 rounded-2xl shadow-xl flex items-center justify-center text-xl cursor-pointer';
+                toggleLeft.innerHTML = '<i class="fa-solid fa-shapes"></i>';
+                toggleLeft.onclick = () => this.toggleMenu('left');
+                document.body.appendChild(toggleLeft);
+            }
 
-            // Button für Farben-Menü (Unten Rechts schwebend)
-            const toggleRight = document.createElement('button');
-            toggleRight.id = 'toggle-menu-right';
-            toggleRight.className = 'lg:hidden fixed bottom-6 right-6 z-30 w-14 h-14 bg-white border border-slate-200 text-slate-700 rounded-2xl shadow-xl flex items-center justify-center text-xl cursor-pointer';
-            toggleRight.innerHTML = '<i class="fa-solid fa-palette"></i>';
-            toggleRight.onclick = () => this.toggleMenu('right');
-            document.body.appendChild(toggleRight);
+            if(!document.getElementById('toggle-menu-right')) {
+                const toggleRight = document.createElement('button');
+                toggleRight.id = 'toggle-menu-right';
+                toggleRight.className = 'lg:hidden fixed bottom-6 right-6 z-30 w-14 h-14 bg-white border border-slate-200 text-slate-700 rounded-2xl shadow-xl flex items-center justify-center text-xl cursor-pointer';
+                toggleRight.innerHTML = '<i class="fa-solid fa-palette"></i>';
+                toggleRight.onclick = () => this.toggleMenu('right');
+                document.body.appendChild(toggleRight);
+            }
         },
 
         toggleMenu(side) {
             const panel = document.getElementById(`sidebar-${side==='left'?'left':'right'}`);
             const otherPanel = document.getElementById(`sidebar-${side==='left'?'right':'left'}`);
             const backdrop = document.getElementById('mobile-menu-backdrop');
-
-            otherPanel.classList.add(side==='left'?'translate-x-full':'-translate-x-full'); // Anderes Menü schließen
-
-            if (panel.classList.contains(side==='left'?'-translate-x-full':'translate-x-full')) {
+            if(otherPanel) otherPanel.classList.add(side==='left'?'translate-x-full':'-translate-x-full');
+            if (panel && panel.classList.contains(side==='left'?'-translate-x-full':'translate-x-full')) {
                 panel.classList.remove(side==='left'?'-translate-x-full':'translate-x-full');
-                backdrop.classList.remove('hidden');
-            } else {
+                if(backdrop) backdrop.classList.remove('hidden');
+            } else if(panel) {
                 panel.classList.add(side==='left'?'-translate-x-full':'translate-x-full');
-                backdrop.classList.add('hidden');
+                if(backdrop) backdrop.classList.add('hidden');
             }
-            SoundFX.play('click');
+            if(window.SoundFX) SoundFX.play('click');
         },
 
         closeAllMenus() {
-            document.getElementById('sidebar-left').classList.add('-translate-x-full');
-            document.getElementById('sidebar-right').classList.add('translate-x-full');
-            document.getElementById('mobile-menu-backdrop').classList.add('hidden');
+            const sL = document.getElementById('sidebar-left');
+            const sR = document.getElementById('sidebar-right');
+            if(sL) sL.classList.add('-translate-x-full');
+            if(sR) sR.classList.add('translate-x-full');
+            const bd = document.getElementById('mobile-menu-backdrop');
+            if(bd) bd.classList.add('hidden');
         },
 
-        // 3. ERSTELLUNG DES MASSIVEN KAMERA VS. BAUEN SCHALTERS
         createInteractionSwitcher() {
-            const switcher = document.createElement('div');
-            switcher.id = 'mobile-interaction-mode-bar';
-            switcher.className = 'lg:hidden fixed top-24 left-1/2 transform -translate-x-1/2 z-30 bg-slate-900/90 p-1.5 rounded-2xl shadow-2xl flex items-center border border-slate-700/50 backdrop-blur';
-            
+            let switcher = document.getElementById('mobile-interaction-mode-bar');
+            if(!switcher) {
+                switcher = document.createElement('div');
+                switcher.id = 'mobile-interaction-mode-bar';
+                document.body.appendChild(switcher);
+            }
+            switcher.className = 'lg:hidden fixed bottom-24 left-1/2 transform -translate-x-1/2 z-30 bg-slate-900/95 p-1.5 rounded-2xl shadow-2xl flex items-center border border-slate-700/50 backdrop-blur';
             switcher.innerHTML = `
                 <button id="touch-btn-camera" onclick="TouchOptimizer.setTouchMode('camera')" class="px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md">
                     <i class="fa-solid fa-camera text-sm"></i> DREHEN
@@ -2879,27 +2874,96 @@
                     <i class="fa-solid fa-bolt text-sm"></i> BAUEN
                 </button>
             `;
-            document.body.appendChild(switcher);
         },
 
         setTouchMode(mode) {
             this.touchMode = mode;
             const btnCam = document.getElementById('touch-btn-camera');
             const btnAct = document.getElementById('touch-btn-action');
+            if(!btnCam || !btnAct) return;
+
+            const hasControls = (window.Engine3D && window.Engine3D.controls);
 
             if (mode === 'camera') {
                 btnCam.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md";
                 btnAct.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white";
-                Engine3D.controls.enabled = true; // OrbitControls einschalten
-                if(Engine3D.previewMesh) Engine3D.previewMesh.visible = false;
+                if(hasControls) Engine3D.controls.enabled = true;
+                if(window.Engine3D && Engine3D.previewMesh) Engine3D.previewMesh.visible = false;
             } else {
                 btnAct.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md";
                 btnCam.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white";
-                Engine3D.controls.enabled = false; // OrbitControls sperren, damit Wischen Steine setzt!
-                if(Engine3D.previewMesh && App.activeTool === 'place') Engine3D.previewMesh.visible = true;
+                if(hasControls) Engine3D.controls.enabled = false;
+                if(window.Engine3D && Engine3D.previewMesh && App.activeTool === 'place') Engine3D.previewMesh.visible = true;
             }
-            SoundFX.play('click');
+            if(window.SoundFX) SoundFX.play('click');
         },
+
+        hookEngineTouchControls() {
+            if(!window.Engine3D) return;
+            const basePointerClick = Engine3D.onPointerClick;
+            if(basePointerClick) {
+                Engine3D.onPointerClick = function(e) {
+                    if (TouchOptimizer.isMobileLayout && TouchOptimizer.touchMode === 'camera') return;
+                    basePointerClick.call(Engine3D, e);
+                };
+            }
+
+            const baseMouseMove = Engine3D.onMouseMove;
+            if(baseMouseMove) {
+                Engine3D.onMouseMove = function(e) {
+                    if (TouchOptimizer.isMobileLayout && TouchOptimizer.touchMode === 'camera') {
+                        if(Engine3D.previewMesh) Engine3D.previewMesh.visible = false;
+                        return;
+                    }
+                    baseMouseMove.call(Engine3D, e);
+                };
+            }
+
+            const baseSetTool = App.setTool;
+            if(baseSetTool) {
+                App.setTool = function(tool) {
+                    baseSetTool.call(App, tool);
+                    if (TouchOptimizer.isMobileLayout && ['place', 'paint', 'delete'].includes(tool)) {
+                        TouchOptimizer.setTouchMode('action');
+                    }
+                    TouchOptimizer.closeAllMenus();
+                };
+            }
+        },
+
+        listenToResize() {
+            window.addEventListener('resize', () => {
+                const isMobileNow = window.innerWidth < 1024;
+                if (isMobileNow !== this.isMobileLayout) {
+                    this.isMobileLayout = isMobileNow;
+                    this.applyInitialState();
+                }
+            });
+        },
+
+        applyInitialState() {
+            const bar = document.getElementById('mobile-interaction-mode-bar');
+            const hasControls = (window.Engine3D && window.Engine3D.controls);
+
+            if (this.isMobileLayout) {
+                if(bar) bar.classList.remove('hidden');
+                this.setTouchMode('camera');
+                this.closeAllMenus();
+            } else {
+                if(bar) bar.classList.add('hidden');
+                if(hasControls) Engine3D.controls.enabled = true;
+                if(window.Engine3D && Engine3D.previewMesh) Engine3D.previewMesh.visible = (App.activeTool === 'place');
+                
+                const sL = document.getElementById('sidebar-left');
+                const sR = document.getElementById('sidebar-right');
+                if(sL) sL.classList.remove('-translate-x-full');
+                if(sR) sR.classList.remove('translate-x-full');
+            }
+        }
+    };
+
+    TouchOptimizer.init();
+})();
 
         // 4. FULLSCREEN API-INTEGRATION IM HEADER
         createFullscreenButton() {
