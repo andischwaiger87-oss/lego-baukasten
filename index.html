@@ -3269,6 +3269,178 @@
     TouchOptimizer.init();
 })();
 
+// =========================================================================
+// BRICKCRAFT STUDIO - VISUAL VISUAL BRICK SELECTION GRID (SOTA 2026)
+// =========================================================================
+
+(function() {
+    console.log("🎨 Aktiviere visuelle Steinauswahl: Generiere 3D-Vorschau-Bilder...");
+
+    // 1. CSS FÜR DAS NEUE RASTER-DESIGN INJIZIEREN
+    const gridStyle = document.createElement('style');
+    gridStyle.innerHTML = `
+        /* Verwandelt die öde Textliste in ein hochmodernes Lego-Vorschau-Raster */
+        #brick-list {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 0.5rem !important;
+            padding: 0.75rem !important;
+        }
+        
+        .brick-gallery-item {
+            background-color: #f8fafc;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            border-radius: 0.75rem;
+            padding: 0.35rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            aspect-ratio: 1 / 1;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .brick-gallery-item:hover {
+            background-color: #f1f5f9;
+            border-color: #cbd5e1;
+            transform: scale(1.02);
+        }
+        
+        .brick-gallery-item.active {
+            background-color: #eef2ff;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 2px #e0e7ff;
+        }
+        
+        .brick-gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+            filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.06));
+        }
+    `;
+    document.head.appendChild(gridStyle);
+
+    // 2. DER OFFSCREEN-FOTOSTUDIO-GENERATOR (Erstellt die Bilder live im RAM)
+    const generateThumbnail = (brickId) => {
+        const size = 80;
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(size, size);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        const scene = new THREE.Scene();
+        
+        // Isometrische Kamera für den klassischen Katalog-Look
+        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
+        camera.position.set(2, 1.6, 2);
+        camera.lookAt(0, 0.1, 0);
+
+        // Perfekte Studio-Beleuchtung aufbauen, damit Noppen Plastik-Schatten werfen
+        const ambient = new THREE.AmbientLight(0xffffff, 0.65); scene.add(ambient);
+        const sun = new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(3, 5, 1); scene.add(sun);
+
+        // Bauteil aus der Fabrik anfordern
+        const brickMesh = GeometryFactory.create(brickId);
+        if (!brickMesh) return '';
+
+        // Neutrales, edles Studio-Grau für Standardsteine zuweisen (Spezial-Effekte der Extensions bleiben erhalten!)
+        const defaultMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.4, metalness: 0.1 });
+        brickMesh.traverse(child => {
+            if (child.isMesh) {
+                if (!child.material.transparent && child.material.emissiveIntensity <= 1 && !child.material.map) {
+                    child.material = defaultMat;
+                }
+            }
+        });
+
+        scene.add(brickMesh);
+
+        // INTELLIGENTES SIZING: Zentriert und skaliert jeden Stein automatisch in den Fotorahmen
+        const box = new THREE.Box3().setFromObject(brickMesh);
+        const center = new THREE.Vector3(); box.getCenter(center);
+        const boxSize = new THREE.Vector3(); box.getSize(boxSize);
+        
+        brickMesh.position.sub(center); // Auf Nullpunkt setzen
+        if(brickId.includes('lamp') || brickId.includes('traffic')) brickMesh.position.y -= 0.2; // Größere Masten leicht absenken
+
+        const maxDim = Math.max(boxSize.x, boxSize.y, boxSize.z);
+        const scaleFactor = 1.25 / maxDim;
+        brickMesh.scale.setScalar(scaleFactor);
+
+        // Foto schießen
+        renderer.render(scene, camera);
+        const dataURL = renderer.domElement.toDataURL();
+        
+        // Ressourcen sauber aufräumen
+        renderer.dispose();
+        return dataURL;
+    };
+
+    // Bild-Zwischenspeicher (verhindert Ruckeln beim Reiterwechsel)
+    const thumbnailCache = {};
+
+    // 3. UI-PIPELINE KAPERN UND NEU STRUKTURIEREN
+    if (window.UIManager) {
+        UIManager.renderBricks = function(category) {
+            const container = document.getElementById('brick-list');
+            if (!container) return;
+            container.innerHTML = '';
+
+            // Filter die Bausteine der gewählten Kategorie
+            const filteredBricks = Object.keys(Registry.bricks).filter(id => Registry.bricks[id].category === category);
+
+            filteredBricks.forEach(id => {
+                const config = Registry.bricks[id];
+                
+                // Falls das Bild noch nicht gerendert wurde, jetzt live "fotografieren"
+                if (!thumbnailCache[id]) {
+                    thumbnailCache[id] = generateThumbnail(id);
+                }
+
+                // Erstelle den Raster-Button
+                const tile = document.createElement('button');
+                tile.className = `brick-gallery-item ${App.activeBrickId === id ? 'active' : ''}`;
+                tile.title = config.name; // Name erscheint als eleganter Tooltip beim Drüberhalten
+                
+                // Bild einbetten
+                if (thumbnailCache[id]) {
+                    const img = document.createElement('img');
+                    img.src = thumbnailCache[id];
+                    img.alt = config.name;
+                    tile.appendChild(img);
+                } else {
+                    tile.innerText = '🧱';
+                }
+
+                // Klick-Logik: Stein aktivieren
+                tile.onclick = () => {
+                    App.activeBrickId = id;
+                    document.querySelectorAll('.brick-gallery-item').forEach(el => el.classList.remove('active'));
+                    tile.classList.add('active');
+                    if (window.SoundFX) SoundFX.play('click');
+                    
+                    // Schließt auf mobilen Geräten die Schublade nach Auswahl automatisch
+                    if (window.TouchOptimizer && TouchOptimizer.isMobileLayout) {
+                        TouchOptimizer.closeAllMenus();
+                    }
+                };
+
+                container.appendChild(tile);
+            });
+        };
+    }
+
+    // Sofortige Erstberechnung ausführen
+    if (window.UIManager && window.App) {
+        UIManager.renderBricks(App.activeCategory || 'standard');
+    }
+
+    console.log("💚 Das visuelle 3D-Vorschau-Raster steht im linken Kontrollzentrum bereit!");
+})();
+
     </script>
 </body>
 </html>
