@@ -3580,11 +3580,11 @@
 
 
 // =========================================================================
-// LEGO BAUKASTEN - PRO ADVANCED BUILDER PACK (DIRECT 45° ROTATION)
+// LEGO BAUKASTEN - PRO ADVANCED BUILDER PACK (FIX: 45° ROTATION & PLATE STACKING)
 // =========================================================================
 
 (function() {
-    console.log("🏢 Architekten-Modus aktiv: Lade intuitive 45°-Rotations-Pipeline...");
+    console.log("🏢 Architekten-Modus aktiv: Initialisiere 45°-Rotations-Pipeline & Platten-Subgrid...");
 
     // 1. MINIMALISTISCHE STYLES FÜR DEN ETAGEN-SLIDER INJIZIEREN
     const style = document.createElement('style');
@@ -3613,14 +3613,12 @@
         
         if (!viewBar || !mainContainer || document.getElementById('toggle-fine-grid')) return;
 
-        // A. Der neue, direkte Rotations-Button (Fügt sich nahtlos neben die Kamera-Augen ein)
         const gridBtn = document.createElement('button');
         gridBtn.id = 'toggle-fine-grid';
         gridBtn.className = "p-2 hover:bg-slate-100 text-slate-600 rounded-lg text-xs font-bold transition-all cursor-pointer border-l border-slate-100 ml-1 flex items-center justify-center w-8 h-8 active:scale-95";
         gridBtn.title = "Baustein um 45° drehen (Alternativ: Taste 'R')";
         gridBtn.innerHTML = '45°';
         
-        // DIREKTE AKTION: Klick dreht den Stein sofort im Raum!
         gridBtn.onclick = () => {
             if (typeof Engine3D !== 'undefined') {
                 Engine3D.rotatePreview();
@@ -3629,7 +3627,6 @@
         };
         viewBar.appendChild(gridBtn);
 
-        // B. Vertikaler Etagen-Schieberegler
         const sliderWrapper = document.createElement('div');
         sliderWrapper.id = 'layer-slider-container';
         sliderWrapper.className = "layer-slider-wrapper hidden md:flex";
@@ -3639,51 +3636,66 @@
             <span id="layer-counter-text" class="text-[9px] font-bold text-slate-500">MAX</span>
         `;
         mainContainer.appendChild(sliderWrapper);
+        console.log("🔍 [DEBUG] Pro-UI Elemente erfolgreich im DOM verankert.");
     };
 
-    // 3. CORE-HOOKS: MATHEMATISCHE 45-GRAD-STRUKTUR & AUTOMATISCHES HALBRASTER
+    // 3. CORE-HOOKS: FIX FÜR ROTATION & 1/3-Lego-HÖHENRASTER (0.4 SLOTS)
     if (typeof Engine3D !== 'undefined') {
         
-        // Überschreibe die Tastatur- und Button-Rotation auf feine 45-Grad-Schritte
-        Engine3D.rotatePreview = function() {
-            // Dreht in Schritten von PI / 4 (entspricht exakt 45 Grad)
-            this.currentRotationY = (this.currentRotationY + Math.PI / 4) % (Math.PI * 2);
+        // REPARATUR 1: Kaperung von refreshPreview, um den Rotationsverlust zu stoppen!
+        const baseRefreshPreview = Engine3D.refreshPreview;
+        Engine3D.refreshPreview = function() {
+            baseRefreshPreview.call(Engine3D); // Baut das Mesh neu
             if (this.previewMesh) {
-                this.previewMesh.rotation.y = this.currentRotationY;
+                this.previewMesh.rotation.y = this.currentRotationY; // Zwingt das Mesh in den Rotationswinkel
             }
+        };
+
+        // REPARATUR 2: Rotations-Schritte auf 45° kalibrieren + Live-Konsole-Log
+        Engine3D.rotatePreview = function() {
+            this.currentRotationY = (this.currentRotationY + Math.PI / 4) % (Math.PI * 2);
+            console.log(`🔄 [DEBUG 45°] Rotation geändert! Winkel: ${(this.currentRotationY * 180 / Math.PI).toFixed(0)}°`);
             this.refreshPreview();
         };
 
-        // Kaperung der Mausbewegung für das adaptive Snapping-Grid
+        // REPARATUR 3: onMouseMove kapern für echtes Platten-Stapeln (Y-Subgrid)
         const baseMouseMove = Engine3D.onMouseMove;
         Engine3D.onMouseMove = function(e) {
-            // Zuerst führt der Core die normale Logik aus
-            baseMouseMove.call(Engine3D, e);
+            baseMouseMove.call(Engine3D, e); // Berechnet X und Z normal vor
             
-            // Mathematische Erkennung, ob der Stein gerade schief (diagonal auf 45°) steht
-            const isDiagonal = Math.abs(Math.sin(this.currentRotationY * 2)) > 0.5;
-            
-            // Wenn er schräg steht, korrigieren wir das Raster live auf halbe Noppen-Schritte (0.5),
-            // damit die schrägen Ecken mathematisch perfekt andocken können.
-            if (isDiagonal && this.previewMesh && this.previewMesh.visible) {
+            if (this.previewMesh && this.previewMesh.visible) {
                 this.raycaster.setFromCamera(this.mouse, this.camera);
                 const hits = this.raycaster.intersectObjects(this.interactObjects, true);
+                
                 if (hits.length > 0) {
                     const hit = hits[0];
                     let targetPoint = hit.point.clone();
                     if (hit.object !== this.plane) {
                         const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
-                        targetPoint.add(normal.multiplyScalar(0.1));
+                        targetPoint.add(normal.multiplyScalar(0.05)); // Sanfter Andock-Puffer
                     }
-                    // Überschreibe x und z mit hochpräzisen Halb-Schritten
-                    this.previewMesh.position.x = Math.round(targetPoint.x * 2) / 2;
-                    this.previewMesh.position.z = Math.round(targetPoint.z * 2) / 2;
+
+                    // KORREKTUR: Echtes Lego-Platten-Höhenraster (1/3 von 1.2 = 0.4 Einheiten!)
+                    const plateHeightStep = App.spatialHeight / 3; // Exakt 0.4
+                    if (hit.object === this.plane) {
+                        this.previewMesh.position.y = 0;
+                    } else {
+                        // Snappt die Höhe jetzt in 0.4er Schritten (0.4, 0.8, 1.2, 1.6...)
+                        this.previewMesh.position.y = Math.round(targetPoint.y / plateHeightStep) * plateHeightStep;
+                    }
+
+                    // ADAPTIVES HORIZONTALES HALBRASTER FÜR 45° SCHRÄGLAGEN
+                    const isDiagonal = Math.abs(Math.sin(this.currentRotationY * 2)) > 0.5;
+                    if (isDiagonal) {
+                        this.previewMesh.position.x = Math.round(targetPoint.x * 2) / 2;
+                        this.previewMesh.position.z = Math.round(targetPoint.z * 2) / 2;
+                    }
                 }
             }
         };
     }
 
-    // 4. ETAGEN-FILTER LOGIK
+    // 4. ETAGEN-FILTER LOGIK (UNVERÄNDERT STABIL)
     App.setLayerFilter = function(val) {
         const heightVal = parseFloat(val);
         const slider = document.getElementById('layer-range-slider');
@@ -3750,7 +3762,6 @@
     };
     bootAdvancedExtensions();
 })();
-
 </script>
 </body>
 </html>
