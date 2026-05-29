@@ -3256,16 +3256,20 @@
 
 
 // =========================================================================
-// BRICKCRAFT STUDIO - CORE ENGINE OVERRIDE (GRID & MOBILE INJECTOR)
+// BRICKCRAFT STUDIO - CORE ENGINE OVERRIDE (ULTRA-SPEED GRID RE-INJECTOR)
 // =========================================================================
 
 (function() {
-    console.log("🚀 Start-Pipeline aktiv: Warte auf Kernkomponenten der App...");
+    console.log("🚀 Starte ultraschnelles 3D-Fotostudio für Baustein-Vorschauen...");
 
-    // 1. CSS FÜR DAS BILD-RASTER & MOBILE MENÜS SOFORT INJIZIEREN
+    // 1. GLOBALEN SCOPE-SCHUTZ FÜR MATERIALIEN SICHERSTELLEN
+    if (!window.chromeMat) {
+        window.chromeMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.9, roughness: 0.1 });
+    }
+
+    // 2. CSS FÜR DAS BILD-RASTER & MOBILE MENÜS INJIZIEREN
     const style = document.createElement('style');
     style.innerHTML = `
-        /* Verwandelt die Textliste in ein hochmodernes Lego-Vorschau-Raster (3 Spalten) */
         #brick-list {
             display: grid !important;
             grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
@@ -3283,13 +3287,14 @@
             align-items: center;
             justify-content: center;
             aspect-ratio: 1 / 1;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease-in-out;
             cursor: pointer;
         }
         
         .brick-gallery-item:hover {
             background-color: #f1f5f9;
             border-color: #cbd5e1;
+            transform: scale(1.03);
         }
         
         .brick-gallery-item.active {
@@ -3305,7 +3310,6 @@
             pointer-events: none;
         }
 
-        /* Mobile Anpassungen für Sidebars */
         @media (max-width: 1023px) {
             #sidebar-left, #sidebar-right {
                 position: fixed !important; top: 0 !important; bottom: 0 !important; height: 100vh !important;
@@ -3320,255 +3324,127 @@
     `;
     document.head.appendChild(style);
 
-    // Hilfsfunktionen für das Header-Dropdown auf Mobile
-    App.toggleMobileMenu = function(e) {
-        if(e) e.stopPropagation();
-        const dd = document.getElementById('mobile-action-dropdown');
-        if(dd) dd.classList.toggle('hidden');
+    // 3. PERSISTENTES OFFSCREEN-FOTOSTUDIO (Verhindert WebGL-Abstürze komplett)
+    let thumbRenderer, thumbScene, thumbCamera;
+    
+    const initThumbStudio = () => {
+        thumbRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        thumbRenderer.setSize(80, 80);
+        thumbRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        
+        thumbScene = new THREE.Scene();
+        thumbCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
+        thumbCamera.position.set(2, 1.6, 2); 
+        thumbCamera.lookAt(0, 0.1, 0);
+        
+        thumbScene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const sun = new THREE.DirectionalLight(0xffffff, 0.6); 
+        sun.position.set(3, 5, 1); 
+        thumbScene.add(sun);
     };
 
-    document.addEventListener('pointerdown', (e) => {
-        const dd = document.getElementById('mobile-action-dropdown');
-        const trigger = document.getElementById('mobile-more-trigger');
-        if (dd && !dd.contains(e.target) && trigger && !trigger.contains(e.target)) dd.classList.add('hidden');
-    });
-
-    // 2. LIVE-FOTOSTUDIO FÜR DIE GENERIERUNG DER 3D-ICONS
     const thumbnailCache = {};
     const generateThumbnail = (brickId) => {
         if (!window.THREE || !window.GeometryFactory) return '';
-        const size = 80;
-        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-        renderer.setSize(size, size);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        if (!thumbRenderer) initThumbStudio();
+
+        // Studio leeren (Alte Test-Meshes entfernen, Lichter behalten)
+        while(thumbScene.children.length > 2) {
+            thumbScene.remove(thumbScene.children[2]);
+        }
+
+        let brickMesh;
+        try {
+            brickMesh = GeometryFactory.create(brickId);
+        } catch (e) {
+            console.warn(`⚠️ Konnte Mesh für ${brickId} wegen fehlender Variablen nicht rendern. Fallback aktiv.`, e);
+            return ''; // Abfangen von Scope-Fehlern
+        }
         
-        const scene = new THREE.Scene();
-        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
-        camera.position.set(2, 1.6, 2); 
-        camera.lookAt(0, 0.1, 0);
-        
-        scene.add(new THREE.AmbientLight(0xffffff, 0.65));
-        const sun = new THREE.DirectionalLight(0xffffff, 0.75); 
-        sun.position.set(3, 5, 1); 
-        scene.add(sun);
-        
-        const brickMesh = GeometryFactory.create(brickId);
         if (!brickMesh) return '';
-        
-        const defaultMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.4, metalness: 0.1 });
+
+        // Neutrales Studio-Material vergeben
+        const defaultMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.4, metalness: 0.1 });
         brickMesh.traverse(child => {
-            if (child.isMesh && !child.material.transparent && child.material.emissiveIntensity <= 1) {
+            if (child.isMesh && !child.material?.transparent) {
                 child.material = defaultMat;
             }
         });
-        scene.add(brickMesh);
-        
+        thumbScene.add(brickMesh);
+
+        // Ausrichten und Skalieren im Mini-Sucher
         const box = new THREE.Box3().setFromObject(brickMesh);
         const center = new THREE.Vector3(); box.getCenter(center);
         const boxSize = new THREE.Vector3(); box.getSize(boxSize);
         brickMesh.position.sub(center);
         
-        if(brickId.includes('lamp') || brickId.includes('traffic')) brickMesh.position.y -= 0.2;
-        const scaleFactor = 1.25 / Math.max(boxSize.x, boxSize.y, boxSize.z);
-        brickMesh.scale.setScalar(scaleFactor);
+        if (brickId.includes('lamp') || brickId.includes('traffic') || brickId.includes('tower') || brickId.includes('flag')) {
+            brickMesh.position.y -= 0.35; // Hohe Masten zentrieren
+        }
         
-        renderer.render(scene, camera);
-        const dataURL = renderer.domElement.toDataURL();
-        renderer.dispose();
-        return dataURL;
+        const scaleFactor = 1.2 / (Math.max(boxSize.x, boxSize.y, boxSize.z) || 1);
+        brickMesh.scale.setScalar(scaleFactor);
+
+        thumbRenderer.render(thumbScene, thumbCamera);
+        return thumbRenderer.domElement.toDataURL();
     };
 
-    // 3. MOBILE INTERAKTIONS-ENGINE STRUCT
-    window.TouchOptimizer = {
-        touchMode: 'camera',
-        isMobileLayout: window.innerWidth < 1024,
-        init() {
-            this.createMobileMenuToggles();
-            this.createInteractionSwitcher();
-            this.hookEngineTouchControls();
-            this.listenToResize();
-            this.applyInitialState();
-        },
-        createMobileMenuToggles() {
-            if(!document.getElementById('mobile-menu-backdrop')) {
-                const backdrop = document.createElement('div'); backdrop.id = 'mobile-menu-backdrop';
-                backdrop.className = 'mobile-backdrop hidden'; backdrop.onclick = () => TouchOptimizer.closeAllMenus();
-                document.body.appendChild(backdrop);
-            }
-            if(!document.getElementById('toggle-menu-left')) {
-                const toggleLeft = document.createElement('button'); toggleLeft.id = 'toggle-menu-left';
-                toggleLeft.className = 'lg:hidden fixed bottom-6 left-6 z-30 w-14 h-14 bg-white border border-slate-200 text-slate-700 rounded-2xl shadow-xl flex items-center justify-center text-xl cursor-pointer';
-                toggleLeft.innerHTML = '<i class="fa-solid fa-shapes"></i>'; toggleLeft.onclick = () => this.toggleMenu('left');
-                document.body.appendChild(toggleLeft);
-            }
-            if(!document.getElementById('toggle-menu-right')) {
-                const toggleRight = document.createElement('button'); toggleRight.id = 'toggle-menu-right';
-                toggleRight.className = 'lg:hidden fixed bottom-6 right-6 z-30 w-14 h-14 bg-white border border-slate-200 text-slate-700 rounded-2xl shadow-xl flex items-center justify-center text-xl cursor-pointer';
-                toggleRight.innerHTML = '<i class="fa-solid fa-palette"></i>'; toggleRight.onclick = () => this.toggleMenu('right');
-                document.body.appendChild(toggleRight);
-            }
-        },
-        toggleMenu(side) {
-            const panel = document.getElementById(`sidebar-${side==='left'?'left':'right'}`);
-            const otherPanel = document.getElementById(`sidebar-${side==='left'?'right':'left'}`);
-            const backdrop = document.getElementById('mobile-menu-backdrop');
-            if(otherPanel) otherPanel.classList.add(side==='left'?'translate-x-full':'-translate-x-full');
-            if (panel && panel.classList.contains(side==='left'?'-translate-x-full':'translate-x-full')) {
-                panel.classList.remove(side==='left'?'-translate-x-full':'translate-x-full');
-                if(backdrop) backdrop.classList.remove('hidden');
-            } else if(panel) {
-                panel.classList.add(side==='left'?'-translate-x-full':'translate-x-full');
-                if(backdrop) backdrop.classList.add('hidden');
-            }
-            if(window.SoundFX) SoundFX.play('click');
-        },
-        closeAllMenus() {
-            const sL = document.getElementById('sidebar-left'); const sR = document.getElementById('sidebar-right');
-            if(sL) sL.classList.add('-translate-x-full'); if(sR) sR.classList.add('translate-x-full');
-            const bd = document.getElementById('mobile-menu-backdrop'); if(bd) bd.classList.add('hidden');
-        },
-        createInteractionSwitcher() {
-            let switcher = document.getElementById('mobile-interaction-mode-bar');
-            if(!switcher) {
-                switcher = document.createElement('div'); switcher.id = 'mobile-interaction-mode-bar';
-                document.body.appendChild(switcher);
-            }
-            switcher.className = 'lg:hidden fixed bottom-24 left-1/2 transform -translate-x-1/2 z-30 bg-slate-900/95 p-1.5 rounded-2xl shadow-2xl flex items-center border border-slate-700/50 backdrop-blur';
-            switcher.innerHTML = `
-                <button id="touch-btn-camera" onclick="TouchOptimizer.setTouchMode('camera')" class="px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md">
-                    <i class="fa-solid fa-camera text-sm"></i> DREHEN
-                </button>
-                <button id="touch-btn-action" onclick="TouchOptimizer.setTouchMode('action')" class="px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white">
-                    <i class="fa-solid fa-bolt text-sm"></i> BAUEN
-                </button>
-            `;
-        },
-        setTouchMode(mode) {
-            this.touchMode = mode;
-            const btnCam = document.getElementById('touch-btn-camera'); const btnAct = document.getElementById('touch-btn-action');
-            if(!btnCam || !btnAct) return;
-            const hasControls = (window.Engine3D && window.Engine3D.controls);
-            if (mode === 'camera') {
-                btnCam.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md";
-                btnAct.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white";
-                if(hasControls) Engine3D.controls.enabled = true;
-                if(window.Engine3D && Engine3D.previewMesh) Engine3D.previewMesh.visible = false;
-            } else {
-                btnAct.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md";
-                btnCam.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white";
-                if(hasControls) Engine3D.controls.enabled = false;
-                if(window.Engine3D && Engine3D.previewMesh && App.activeTool === 'place') Engine3D.previewMesh.visible = true;
-            }
-            if(window.SoundFX) SoundFX.play('click');
-        },
-        hookEngineTouchControls() {
-            if(!window.Engine3D) return;
-            const basePointerClick = Engine3D.onPointerClick;
-            if(basePointerClick) {
-                Engine3D.onPointerClick = function(e) {
-                    if (TouchOptimizer.isMobileLayout && TouchOptimizer.touchMode === 'camera') return;
-                    basePointerClick.call(Engine3D, e);
-                };
-            }
-            const baseMouseMove = Engine3D.onMouseMove;
-            if(baseMouseMove) {
-                Engine3D.onMouseMove = function(e) {
-                    if (TouchOptimizer.isMobileLayout && TouchOptimizer.touchMode === 'camera') {
-                        if(Engine3D.previewMesh) Engine3D.previewMesh.visible = false;
-                        return;
-                    }
-                    baseMouseMove.call(Engine3D, e);
-                };
-            }
-            const baseSetTool = App.setTool;
-            if(baseSetTool) {
-                App.setTool = function(tool) {
-                    baseSetTool.call(App, tool);
-                    if (TouchOptimizer.isMobileLayout && ['place', 'paint', 'delete'].includes(tool)) {
-                        TouchOptimizer.setTouchMode('action');
-                    }
-                    TouchOptimizer.closeAllMenus();
-                };
-            }
-        },
-        listenToResize() {
-            window.addEventListener('resize', () => {
-                const isMobileNow = window.innerWidth < 1024;
-                if (isMobileNow !== this.isMobileLayout) {
-                    this.isMobileLayout = isMobileNow; this.applyInitialState();
-                }
-            });
-        },
-        applyInitialState() {
-            const bar = document.getElementById('mobile-interaction-mode-bar');
-            const hasControls = (window.Engine3D && window.Engine3D.controls);
-            if (this.isMobileLayout) {
-                if(bar) bar.classList.remove('hidden');
-                this.setTouchMode('camera'); this.closeAllMenus();
-            } else {
-                if(bar) bar.classList.add('hidden');
-                if(hasControls) Engine3D.controls.enabled = true;
-                if(window.Engine3D && Engine3D.previewMesh) Engine3D.previewMesh.visible = (App.activeTool === 'place');
-                const sL = document.getElementById('sidebar-left'); const sR = document.getElementById('sidebar-right');
-                if(sL) sL.classList.remove('-translate-x-full'); if(sR) sR.classList.remove('translate-x-full');
-            }
-        }
-    };
-    
-    // 4. DER KERN-HIJACKER: Wartet stabil auf die App und klinkt sich dauerhaft ein
-    const secureStart = () => {
-        if(window.Engine3D && window.Engine3D.controls && window.GeometryFactory && window.UIManager && window.App) {
-            console.log("🎯 App bereit! Überschreibe Bausteine-Renderer mit 3D-Katalograster...");
-            
-            // Die Render-Funktion der App dauerhaft durch unser Bild-Raster austauschen
+    // 4. DER SYSTEM-HIJACKER
+    const runHijack = () => {
+        if (window.Engine3D && window.Engine3D.controls && window.UIManager && window.App) {
+            console.log("🎯 Kern-Engine gekapert: Ersetze Textliste durch 3D-Katalog-Raster...");
+
             window.UIManager.renderBricks = function(category) {
                 const container = document.getElementById('brick-list');
                 if (!container) return;
                 container.innerHTML = '';
-                
-                // Bauteile filtern
+
                 const filteredBricks = Object.keys(Registry.bricks).filter(id => Registry.bricks[id].category === category);
-                
+
                 filteredBricks.forEach(id => {
                     const config = Registry.bricks[id];
                     if (!thumbnailCache[id]) thumbnailCache[id] = generateThumbnail(id);
-                    
+
                     const tile = document.createElement('button');
-                    tile.className = `brick-gallery-item ${App.activeBrickId === id ? 'active' : ''}`;
+                    // Synchronisation mit dem echten Core-State der App
+                    tile.className = `brick-gallery-item ${App.selectedBrick === id ? 'active' : ''}`;
                     tile.title = config.name;
-                    
+
                     if (thumbnailCache[id]) {
-                        const img = document.createElement('img'); 
-                        img.src = thumbnailCache[id]; 
+                        const img = document.createElement('img');
+                        img.src = thumbnailCache[id];
                         img.alt = config.name;
                         tile.appendChild(img);
                     } else {
                         tile.innerText = '🧱';
                     }
-                    
+
                     tile.onclick = () => {
-                        App.activeBrickId = id;
+                        App.selectedBrick = id; // Setzt die Auswahl im System
                         document.querySelectorAll('.brick-gallery-item').forEach(el => el.classList.remove('active'));
                         tile.classList.add('active');
                         if (window.SoundFX) SoundFX.play('click');
+                        if (window.Engine3D) Engine3D.refreshPreview(); // Aktiviert 3D-Vorschau am Mauszeiger sofort!
                         if (window.TouchOptimizer && TouchOptimizer.isMobileLayout) TouchOptimizer.closeAllMenus();
                     };
+
                     container.appendChild(tile);
                 });
             };
 
-            // Mobile-Funktionen starten
-            TouchOptimizer.init();
-            
-            // Sofortige Erst-Generierung des Katalogs erzwingen
-            window.UIManager.renderBricks(App.activeCategory || 'standard');
+            // Mobile-Zusatzfunktionen anwerfen
+            if (window.TouchOptimizer && typeof TouchOptimizer.init === 'function') {
+                TouchOptimizer.init();
+            }
+
+            // Initiale Aktivierung für die Startkategorie
+            window.UIManager.renderBricks('standard');
         } else {
-            // Falls das System noch lädt, in 50 Millisekunden erneut prüfen
-            setTimeout(secureStart, 50);
+            setTimeout(runHijack, 30);
         }
     };
-    
-    secureStart();
+
+    runHijack();
 })();
 </script>
 </body>
