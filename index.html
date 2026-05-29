@@ -3074,11 +3074,11 @@
 })();
 
 // =========================================================================
-// BRICKCRAFT STUDIO - MOBILE OPTIMIZER (STABLE TIMING VERSION)
+// BRICKCRAFT STUDIO - MOBILE OPTIMIZER (ANTI-CRASH TIMING VALVE)
 // =========================================================================
 
 (function() {
-    console.log("📱 Optimiere mobile Ansichten mit stabilisiertem 3D-Timing...");
+    console.log("📱 Aktiviere mobilen Optimierer mit intelligenter Lade-Überwachung...");
 
     // 1. NATIVE STYLES ERGÄNZEN
     const style = document.createElement('style');
@@ -3123,8 +3123,8 @@
             this.hookEngineTouchControls();
             this.listenToResize();
             
-            // Warte kurz, falls die 3D-Engine noch lädt
-            setTimeout(() => this.applyInitialState(), 100);
+            // Startet die Überwachung
+            this.applyInitialState();
         },
 
         createMobileMenuToggles() {
@@ -3201,15 +3201,18 @@
             const btnAct = document.getElementById('touch-btn-action');
             if(!btnCam || !btnAct) return;
 
+            // Sichere Abfrage über die Existenz der 3D-Kamera-Komponenten
+            const hasControls = (window.Engine3D && window.Engine3D.controls);
+
             if (mode === 'camera') {
                 btnCam.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md";
                 btnAct.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white";
-                if(Engine3D && Engine3D.controls) Engine3D.controls.enabled = true;
+                if(hasControls) Engine3D.controls.enabled = true;
                 if(Engine3D && Engine3D.previewMesh) Engine3D.previewMesh.visible = false;
             } else {
                 btnAct.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md";
                 btnCam.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white";
-                if(Engine3D && Engine3D.controls) Engine3D.controls.enabled = false;
+                if(hasControls) Engine3D.controls.enabled = false;
                 if(Engine3D && Engine3D.previewMesh && App.activeTool === 'place') Engine3D.previewMesh.visible = true;
             }
             if(window.SoundFX) SoundFX.play('click');
@@ -3251,16 +3254,23 @@
             });
         },
 
+        // KORREKTUR: Wenn die Steuerung noch lädt, wartet die Funktion sicherheitshalber
         applyInitialState() {
             const bar = document.getElementById('mobile-interaction-mode-bar');
+            
+            if (!window.Engine3D || !window.Engine3D.controls) {
+                setTimeout(() => this.applyInitialState(), 50);
+                return;
+            }
+
             if (this.isMobileLayout) {
                 if(bar) bar.classList.remove('hidden');
                 this.setTouchMode('camera');
                 this.closeAllMenus();
             } else {
                 if(bar) bar.classList.add('hidden');
-                if(Engine3D && Engine3D.controls) Engine3D.controls.enabled = true;
-                if(Engine3D && Engine3D.previewMesh) Engine3D.previewMesh.visible = (App.activeTool === 'place');
+                Engine3D.controls.enabled = true;
+                if(Engine3D.previewMesh) Engine3D.previewMesh.visible = (App.activeTool === 'place');
                 document.getElementById('sidebar-left').classList.remove('-translate-x-full');
                 document.getElementById('sidebar-right').classList.remove('translate-x-full');
             }
