@@ -3446,6 +3446,92 @@
 
     runHijack();
 })();
+
+
+// =========================================================================
+// BRICKCRAFT STUDIO - AUTOMATIC DIAGNOSTIC & DEBUGGER (SOTA 2026)
+// =========================================================================
+
+(function() {
+    setTimeout(() => {
+        console.group("🔍 DEEP-DEBUG: LEGO-BAUKASTEN ANALYSE");
+        console.log("🚀 Starte System-Inspektion...");
+
+        // CHECK 1: Existieren die Core-Objekte?
+        const coreObjects = { Registry, GeometryFactory, Engine3D, UIManager, App };
+        let coreOk = true;
+        
+        for (let [name, obj] of Object.entries(coreObjects)) {
+            if (!obj) {
+                console.error(`❌ FEHLER: Das globale Objekt '${name}' fehlt komplett oder ist null!`);
+                coreOk = false;
+            } else {
+                console.log(`✅ Core-Check: '${name}' ist einsatzbereit.`);
+            }
+        }
+
+        // CHECK 2: Existiert das HTML-Element im DOM?
+        const brickListEl = document.getElementById('brick-list');
+        if (!brickListEl) {
+            console.error("❌ FEHLER: Das HTML-Element mit der ID 'brick-list' wurde im Dokument nicht gefunden!");
+        } else {
+            console.log("✅ DOM-Check: Element '#brick-list' existiert im HTML-Layout.");
+            console.log("   Aktueller HTML-Inhalt Länge:", brickListEl.innerHTML.length, "Zeichen.");
+        }
+
+        // CHECK 3: Ist die Render-Funktion erfolgreich überschrieben worden?
+        if (window.UIManager && window.UIManager.renderBricks) {
+            const funcString = window.UIManager.renderBricks.toString();
+            if (funcString.includes('generateThumbnail')) {
+                console.log("✅ Hijack-Check: UIManager.renderBricks wurde erfolgreich vom Addon überschrieben.");
+            } else {
+                console.warn("⚠️ WARNUNG: UIManager.renderBricks nutzt noch immer den originalen Text-Code! Das Addon hat nicht gegriffen.");
+            }
+        }
+
+        // CHECK 4: Funktioniert das 3D-Fotostudio im RAM? (Test-Bild schießen)
+        try {
+            if (window.GeometryFactory && Registry.bricks['b11']) {
+                console.log("📸 Teste 3D-Fotostudio: Generiere Test-Icon für Standard-Würfel 'b11'...");
+                
+                // Wir spiegeln kurz die Generierungs-Logik
+                const size = 80;
+                const testRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+                testRenderer.setSize(size, size);
+                const testScene = new THREE.Scene();
+                const testCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
+                testCamera.position.set(2, 1.6, 2);
+                testCamera.lookAt(0, 0.1, 0);
+                
+                const testMesh = GeometryFactory.create('b11');
+                if (testMesh) {
+                    testScene.add(testMesh);
+                    testRenderer.render(testScene, testCamera);
+                    const testUrl = testRenderer.domElement.toDataURL();
+                    testRenderer.dispose();
+                    
+                    if (testUrl && testUrl.startsWith('data:image')) {
+                        console.log("✅ Studio-Check: 3D-Foto erfolgreich im Arbeitsspeicher geschossen!");
+                        console.log("   Bilddaten-Vorschau (Länge):", testUrl.length, "Zeichen.");
+                    } else {
+                        console.error("❌ FEHLER: Das Fotostudio liefert kein gültiges Bild (DataURL leer oder fehlerhaft).");
+                    }
+                } else {
+                    console.error("❌ FEHLER: GeometryFactory konnte kein 3D-Mesh für den Teststein erzeugen.");
+                }
+            }
+        } catch (err) {
+            console.error("💥 SYSTEM-CRASH im Fotostudio! Das Skript bricht ab mit Fehler:", err.message);
+            console.error(err.stack);
+        }
+
+        console.log("🏁 Inspektion abgeschlossen. Bitte prüfe die obigen Meldungen.");
+        console.groupEnd();
+    }, 1500); // Wartet 1,5 Sekunden, bis die App sich beruhigt hat
+})();
+
+
+
 </script>
 </body>
 </html>
