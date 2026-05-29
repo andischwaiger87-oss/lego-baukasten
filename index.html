@@ -3074,11 +3074,11 @@
 })();
 
 // =========================================================================
-// BRICKCRAFT STUDIO - MOBILE OPTIMIZER (REFINED VIEWPORT LAYOUT)
+// BRICKCRAFT STUDIO - MOBILE OPTIMIZER (STABLE TIMING VERSION)
 // =========================================================================
 
 (function() {
-    console.log("📱 Optimiere mobile Ansichten und korrigiere Überlagerungen...");
+    console.log("📱 Optimiere mobile Ansichten mit stabilisiertem 3D-Timing...");
 
     // 1. NATIVE STYLES ERGÄNZEN
     const style = document.createElement('style');
@@ -3098,7 +3098,7 @@
     `;
     document.head.appendChild(style);
 
-    // FUNKTIONEN FÜR DAS NEUE HEADER-DROPDOWN BEREITSTELLEN
+    // FUNKTIONEN FÜR DAS HEADER-DROPDOWN BEREITSTELLEN
     App.toggleMobileMenu = function(e) {
         if(e) e.stopPropagation();
         const dd = document.getElementById('mobile-action-dropdown');
@@ -3122,7 +3122,9 @@
             this.createInteractionSwitcher();
             this.hookEngineTouchControls();
             this.listenToResize();
-            this.applyInitialState();
+            
+            // Warte kurz, falls die 3D-Engine noch lädt
+            setTimeout(() => this.applyInitialState(), 100);
         },
 
         createMobileMenuToggles() {
@@ -3165,7 +3167,7 @@
                 panel.classList.add(side==='left'?'-translate-x-full':'translate-x-full');
                 backdrop.classList.add('hidden');
             }
-            SoundFX.play('click');
+            if(window.SoundFX) SoundFX.play('click');
         },
 
         closeAllMenus() {
@@ -3175,7 +3177,6 @@
             if(bd) bd.classList.add('hidden');
         },
 
-        // KORREKTUR: POSITIONIERT DIE BAR JETZT UNTEN (UNTEN-24) ÜBER DER WERKZEUGLEISTE
         createInteractionSwitcher() {
             let switcher = document.getElementById('mobile-interaction-mode-bar');
             if(!switcher) {
@@ -3203,15 +3204,15 @@
             if (mode === 'camera') {
                 btnCam.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md";
                 btnAct.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white";
-                Engine3D.controls.enabled = true;
-                if(Engine3D.previewMesh) Engine3D.previewMesh.visible = false;
+                if(Engine3D && Engine3D.controls) Engine3D.controls.enabled = true;
+                if(Engine3D && Engine3D.previewMesh) Engine3D.previewMesh.visible = false;
             } else {
                 btnAct.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md";
                 btnCam.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white";
-                Engine3D.controls.enabled = false;
-                if(Engine3D.previewMesh && App.activeTool === 'place') Engine3D.previewMesh.visible = true;
+                if(Engine3D && Engine3D.controls) Engine3D.controls.enabled = false;
+                if(Engine3D && Engine3D.previewMesh && App.activeTool === 'place') Engine3D.previewMesh.visible = true;
             }
-            SoundFX.play('click');
+            if(window.SoundFX) SoundFX.play('click');
         },
 
         hookEngineTouchControls() {
@@ -3258,8 +3259,8 @@
                 this.closeAllMenus();
             } else {
                 if(bar) bar.classList.add('hidden');
-                Engine3D.controls.enabled = true;
-                if(Engine3D.previewMesh) Engine3D.previewMesh.visible = (App.activeTool === 'place');
+                if(Engine3D && Engine3D.controls) Engine3D.controls.enabled = true;
+                if(Engine3D && Engine3D.previewMesh) Engine3D.previewMesh.visible = (App.activeTool === 'place');
                 document.getElementById('sidebar-left').classList.remove('-translate-x-full');
                 document.getElementById('sidebar-right').classList.remove('translate-x-full');
             }
@@ -3268,6 +3269,7 @@
 
     TouchOptimizer.init();
 })();
+
 
 // =========================================================================
 // BRICKCRAFT STUDIO - VISUAL VISUAL BRICK SELECTION GRID (SOTA 2026)
