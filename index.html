@@ -3256,20 +3256,21 @@
 
 
 // =========================================================================
-// BRICKCRAFT STUDIO - CORE ENGINE OVERRIDE (ULTRA-SPEED GRID RE-INJECTOR)
+// LEGO BAUKASTEN - CORE ENGINE OVERRIDE & MOBILE OPTIMIZER (FINAL FIX)
 // =========================================================================
 
 (function() {
-    console.log("🚀 Starte ultraschnelles 3D-Fotostudio für Baustein-Vorschauen...");
+    console.log("🎨 Initialisiere visuelle 3D-Katalog-Engine...");
 
     // 1. GLOBALEN SCOPE-SCHUTZ FÜR MATERIALIEN SICHERSTELLEN
-    if (!window.chromeMat) {
+    if (typeof chromeMat === 'undefined') {
         window.chromeMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.9, roughness: 0.1 });
     }
 
-    // 2. CSS FÜR DAS BILD-RASTER & MOBILE MENÜS INJIZIEREN
+    // 2. CSS FÜR DAS BILD-RASTER & MOBILE MENÜS SOFORT INJIZIEREN
     const style = document.createElement('style');
     style.innerHTML = `
+        /* Verwandelt die Textliste in ein hochmodernes Lego-Vorschau-Raster (3 Spalten) */
         #brick-list {
             display: grid !important;
             grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
@@ -3310,6 +3311,7 @@
             pointer-events: none;
         }
 
+        /* Mobile Anpassungen für Sidebars */
         @media (max-width: 1023px) {
             #sidebar-left, #sidebar-right {
                 position: fixed !important; top: 0 !important; bottom: 0 !important; height: 100vh !important;
@@ -3324,31 +3326,42 @@
     `;
     document.head.appendChild(style);
 
-    // 3. PERSISTENTES OFFSCREEN-FOTOSTUDIO (Verhindert WebGL-Abstürze komplett)
+    // Hilfsfunktionen für das Header-Dropdown auf Mobile
+    if (typeof App !== 'undefined') {
+        App.toggleMobileMenu = function(e) {
+            if(e) e.stopPropagation();
+            const dd = document.getElementById('mobile-action-dropdown');
+            if(dd) dd.classList.toggle('hidden');
+        };
+    }
+
+    document.addEventListener('pointerdown', (e) => {
+        const dd = document.getElementById('mobile-action-dropdown');
+        const trigger = document.getElementById('mobile-more-trigger');
+        if (dd && !dd.contains(e.target) && trigger && !trigger.contains(e.target)) dd.classList.add('hidden');
+    });
+
+    // 3. PERSISTENTES OFFSCREEN-FOTOSTUDIO (Nutzt langlebigen Grafik-Kanal im RAM)
     let thumbRenderer, thumbScene, thumbCamera;
-    
     const initThumbStudio = () => {
         thumbRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
         thumbRenderer.setSize(80, 80);
         thumbRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        
         thumbScene = new THREE.Scene();
         thumbCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
-        thumbCamera.position.set(2, 1.6, 2); 
+        thumbCamera.position.set(2, 1.6, 2);
         thumbCamera.lookAt(0, 0.1, 0);
-        
         thumbScene.add(new THREE.AmbientLight(0xffffff, 0.7));
-        const sun = new THREE.DirectionalLight(0xffffff, 0.6); 
-        sun.position.set(3, 5, 1); 
+        const sun = new THREE.DirectionalLight(0xffffff, 0.6);
+        sun.position.set(3, 5, 1);
         thumbScene.add(sun);
     };
 
     const thumbnailCache = {};
     const generateThumbnail = (brickId) => {
-        if (!window.THREE || !window.GeometryFactory) return '';
+        if (typeof THREE === 'undefined' || typeof GeometryFactory === 'undefined') return '';
         if (!thumbRenderer) initThumbStudio();
 
-        // Studio leeren (Alte Test-Meshes entfernen, Lichter behalten)
         while(thumbScene.children.length > 2) {
             thumbScene.remove(thumbScene.children[2]);
         }
@@ -3357,31 +3370,24 @@
         try {
             brickMesh = GeometryFactory.create(brickId);
         } catch (e) {
-            console.warn(`⚠️ Konnte Mesh für ${brickId} wegen fehlender Variablen nicht rendern. Fallback aktiv.`, e);
-            return ''; // Abfangen von Scope-Fehlern
+            return '';
         }
-        
         if (!brickMesh) return '';
 
-        // Neutrales Studio-Material vergeben
         const defaultMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.4, metalness: 0.1 });
         brickMesh.traverse(child => {
-            if (child.isMesh && !child.material?.transparent) {
-                child.material = defaultMat;
-            }
+            if (child.isMesh && !child.material?.transparent) child.material = defaultMat;
         });
         thumbScene.add(brickMesh);
 
-        // Ausrichten und Skalieren im Mini-Sucher
         const box = new THREE.Box3().setFromObject(brickMesh);
         const center = new THREE.Vector3(); box.getCenter(center);
         const boxSize = new THREE.Vector3(); box.getSize(boxSize);
         brickMesh.position.sub(center);
         
         if (brickId.includes('lamp') || brickId.includes('traffic') || brickId.includes('tower') || brickId.includes('flag')) {
-            brickMesh.position.y -= 0.35; // Hohe Masten zentrieren
+            brickMesh.position.y -= 0.35;
         }
-        
         const scaleFactor = 1.2 / (Math.max(boxSize.x, boxSize.y, boxSize.z) || 1);
         brickMesh.scale.setScalar(scaleFactor);
 
@@ -3389,149 +3395,188 @@
         return thumbRenderer.domElement.toDataURL();
     };
 
-    // 4. DER SYSTEM-HIJACKER
-    const runHijack = () => {
-        if (window.Engine3D && window.Engine3D.controls && window.UIManager && window.App) {
-            console.log("🎯 Kern-Engine gekapert: Ersetze Textliste durch 3D-Katalog-Raster...");
-
-            window.UIManager.renderBricks = function(category) {
-                const container = document.getElementById('brick-list');
-                if (!container) return;
-                container.innerHTML = '';
-
-                const filteredBricks = Object.keys(Registry.bricks).filter(id => Registry.bricks[id].category === category);
-
-                filteredBricks.forEach(id => {
-                    const config = Registry.bricks[id];
-                    if (!thumbnailCache[id]) thumbnailCache[id] = generateThumbnail(id);
-
-                    const tile = document.createElement('button');
-                    // Synchronisation mit dem echten Core-State der App
-                    tile.className = `brick-gallery-item ${App.selectedBrick === id ? 'active' : ''}`;
-                    tile.title = config.name;
-
-                    if (thumbnailCache[id]) {
-                        const img = document.createElement('img');
-                        img.src = thumbnailCache[id];
-                        img.alt = config.name;
-                        tile.appendChild(img);
-                    } else {
-                        tile.innerText = '🧱';
-                    }
-
-                    tile.onclick = () => {
-                        App.selectedBrick = id; // Setzt die Auswahl im System
-                        document.querySelectorAll('.brick-gallery-item').forEach(el => el.classList.remove('active'));
-                        tile.classList.add('active');
-                        if (window.SoundFX) SoundFX.play('click');
-                        if (window.Engine3D) Engine3D.refreshPreview(); // Aktiviert 3D-Vorschau am Mauszeiger sofort!
-                        if (window.TouchOptimizer && TouchOptimizer.isMobileLayout) TouchOptimizer.closeAllMenus();
-                    };
-
-                    container.appendChild(tile);
-                });
-            };
-
-            // Mobile-Zusatzfunktionen anwerfen
-            if (window.TouchOptimizer && typeof TouchOptimizer.init === 'function') {
-                TouchOptimizer.init();
+    // 4. TOUCH OPTIMIZER ENGINE STRUCT
+    window.TouchOptimizer = {
+        touchMode: 'camera',
+        isMobileLayout: window.innerWidth < 1024,
+        init() {
+            this.createMobileMenuToggles();
+            this.createInteractionSwitcher();
+            this.hookEngineTouchControls();
+            this.listenToResize();
+            this.applyInitialState();
+        },
+        createMobileMenuToggles() {
+            if(!document.getElementById('mobile-menu-backdrop')) {
+                const backdrop = document.createElement('div'); backdrop.id = 'mobile-menu-backdrop';
+                backdrop.className = 'mobile-backdrop hidden'; backdrop.onclick = () => TouchOptimizer.closeAllMenus();
+                document.body.appendChild(backdrop);
             }
-
-            // Initiale Aktivierung für die Startkategorie
-            window.UIManager.renderBricks('standard');
-        } else {
-            setTimeout(runHijack, 30);
+            if(!document.getElementById('toggle-menu-left')) {
+                const toggleLeft = document.createElement('button'); toggleLeft.id = 'toggle-menu-left';
+                toggleLeft.className = 'lg:hidden fixed bottom-6 left-6 z-30 w-14 h-14 bg-white border border-slate-200 text-slate-700 rounded-2xl shadow-xl flex items-center justify-center text-xl cursor-pointer';
+                toggleLeft.innerHTML = '<i class="fa-solid fa-shapes"></i>'; toggleLeft.onclick = () => this.toggleMenu('left');
+                document.body.appendChild(toggleLeft);
+            }
+            if(!document.getElementById('toggle-menu-right')) {
+                const toggleRight = document.createElement('button'); toggleRight.id = 'toggle-menu-right';
+                toggleRight.className = 'lg:hidden fixed bottom-6 right-6 z-30 w-14 h-14 bg-white border border-slate-200 text-slate-700 rounded-2xl shadow-xl flex items-center justify-center text-xl cursor-pointer';
+                toggleRight.innerHTML = '<i class="fa-solid fa-palette"></i>'; toggleRight.onclick = () => this.toggleMenu('right');
+                document.body.appendChild(toggleRight);
+            }
+        },
+        toggleMenu(side) {
+            const panel = document.getElementById(`sidebar-${side==='left'?'left':'right'}`);
+            const otherPanel = document.getElementById(`sidebar-${side==='left'?'right':'left'}`);
+            const backdrop = document.getElementById('mobile-menu-backdrop');
+            if(otherPanel) otherPanel.classList.add(side==='left'?'translate-x-full':'-translate-x-full');
+            if (panel && panel.classList.contains(side==='left'?'-translate-x-full':'translate-x-full')) {
+                panel.classList.remove(side==='left'?'-translate-x-full':'translate-x-full');
+                if(backdrop) backdrop.classList.remove('hidden');
+            } else if(panel) {
+                panel.classList.add(side==='left'?'-translate-x-full':'translate-x-full');
+                if(backdrop) backdrop.classList.add('hidden');
+            }
+            if(window.SoundFX) SoundFX.play('click');
+        },
+        closeAllMenus() {
+            const sL = document.getElementById('sidebar-left'); const sR = document.getElementById('sidebar-right');
+            if(sL) sL.classList.add('-translate-x-full'); if(sR) sR.classList.add('translate-x-full');
+            const bd = document.getElementById('mobile-menu-backdrop'); if(bd) bd.classList.add('hidden');
+        },
+        createInteractionSwitcher() {
+            let switcher = document.getElementById('mobile-interaction-mode-bar');
+            if(!switcher) {
+                switcher = document.createElement('div'); switcher.id = 'mobile-interaction-mode-bar';
+                document.body.appendChild(switcher);
+            }
+            switcher.className = 'lg:hidden fixed bottom-24 left-1/2 transform -translate-x-1/2 z-30 bg-slate-900/95 p-1.5 rounded-2xl shadow-2xl flex items-center border border-slate-700/50 backdrop-blur';
+            switcher.innerHTML = `
+                <button id="touch-btn-camera" onclick="TouchOptimizer.setTouchMode('camera')" class="px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md">
+                    <i class="fa-solid fa-camera text-sm"></i> DREHEN
+                </button>
+                <button id="touch-btn-action" onclick="TouchOptimizer.setTouchMode('action')" class="px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-bolt text-sm"></i> BAUEN
+                </button>
+            `;
+        },
+        setTouchMode(mode) {
+            this.touchMode = mode;
+            const btnCam = document.getElementById('touch-btn-camera'); const btnAct = document.getElementById('touch-btn-action');
+            if(!btnCam || !btnAct) return;
+            const hasControls = (typeof Engine3D !== 'undefined' && Engine3D.controls);
+            if (mode === 'camera') {
+                btnCam.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md";
+                btnAct.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white";
+                if(hasControls) Engine3D.controls.enabled = true;
+                if(typeof Engine3D !== 'undefined' && Engine3D.previewMesh) Engine3D.previewMesh.visible = false;
+            } else {
+                btnAct.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-white bg-indigo-600 shadow-md";
+                btnCam.className = "px-4 py-2.5 rounded-xl font-bold text-xs tracking-wider flex items-center gap-2 transition-all cursor-pointer text-slate-400 hover:text-white";
+                if(hasControls) Engine3D.controls.enabled = false;
+                if(typeof Engine3D !== 'undefined' && Engine3D.previewMesh && App.activeTool === 'place') Engine3D.previewMesh.visible = true;
+            }
+            if(window.SoundFX) SoundFX.play('click');
+        },
+        hookEngineTouchControls() {
+            if(typeof Engine3D === 'undefined') return;
+            const basePointerClick = Engine3D.onPointerClick;
+            if(basePointerClick) {
+                Engine3D.onPointerClick = function(e) {
+                    if (TouchOptimizer.isMobileLayout && TouchOptimizer.touchMode === 'camera') return;
+                    basePointerClick.call(Engine3D, e);
+                };
+            }
+            const baseMouseMove = Engine3D.onMouseMove;
+            if(baseMouseMove) {
+                Engine3D.onMouseMove = function(e) {
+                    if (TouchOptimizer.isMobileLayout && TouchOptimizer.touchMode === 'camera') {
+                        if(Engine3D.previewMesh) Engine3D.previewMesh.visible = false;
+                        return;
+                    }
+                    baseMouseMove.call(Engine3D, e);
+                };
+            }
+            const baseSetTool = App.setTool;
+            if(baseSetTool) {
+                App.setTool = function(tool) {
+                    baseSetTool.call(App, tool);
+                    if (TouchOptimizer.isMobileLayout && ['place', 'paint', 'delete'].includes(tool)) this.setTouchMode('action');
+                    this.closeAllMenus();
+                };
+            }
+        },
+        listenToResize() {
+            window.addEventListener('resize', () => {
+                const isMobileNow = window.innerWidth < 1024;
+                if (isMobileNow !== this.isMobileLayout) {
+                    this.isMobileLayout = isMobileNow; this.applyInitialState();
+                }
+            });
+        },
+        applyInitialState() {
+            const bar = document.getElementById('mobile-interaction-mode-bar');
+            const hasControls = (typeof Engine3D !== 'undefined' && Engine3D.controls);
+            if (this.isMobileLayout) {
+                if(bar) bar.classList.remove('hidden');
+                this.setTouchMode('camera'); this.closeAllMenus();
+            } else {
+                if(bar) bar.classList.add('hidden');
+                if(hasControls) Engine3D.controls.enabled = true;
+                if(typeof Engine3D !== 'undefined' && Engine3D.previewMesh) Engine3D.previewMesh.visible = (App.activeTool === 'place');
+                const sL = document.getElementById('sidebar-left'); const sR = document.getElementById('sidebar-right');
+                if(sL) sL.classList.remove('-translate-x-full'); if(sR) sR.classList.remove('translate-x-full');
+            }
         }
     };
-
-    runHijack();
-})();
-
-
-// =========================================================================
-// BRICKCRAFT STUDIO - AUTOMATIC DIAGNOSTIC & DEBUGGER (SOTA 2026)
-// =========================================================================
-
-(function() {
-    setTimeout(() => {
-        console.group("🔍 DEEP-DEBUG: LEGO-BAUKASTEN ANALYSE");
-        console.log("🚀 Starte System-Inspektion...");
-
-        // CHECK 1: Existieren die Core-Objekte?
-        const coreObjects = { Registry, GeometryFactory, Engine3D, UIManager, App };
-        let coreOk = true;
+    
+    // 5. SYNCHRONER DIRECT-HIJACK (Klinkt sich ohne Warte-Schleife fehlerfrei ein)
+    if (typeof UIManager !== 'undefined' && typeof App !== 'undefined') {
+        console.log("🎯 Reichweiten-Check bestanden: Schalte UIManager auf 3D-Bilder-Raster um...");
         
-        for (let [name, obj] of Object.entries(coreObjects)) {
-            if (!obj) {
-                console.error(`❌ FEHLER: Das globale Objekt '${name}' fehlt komplett oder ist null!`);
-                coreOk = false;
-            } else {
-                console.log(`✅ Core-Check: '${name}' ist einsatzbereit.`);
-            }
-        }
-
-        // CHECK 2: Existiert das HTML-Element im DOM?
-        const brickListEl = document.getElementById('brick-list');
-        if (!brickListEl) {
-            console.error("❌ FEHLER: Das HTML-Element mit der ID 'brick-list' wurde im Dokument nicht gefunden!");
-        } else {
-            console.log("✅ DOM-Check: Element '#brick-list' existiert im HTML-Layout.");
-            console.log("   Aktueller HTML-Inhalt Länge:", brickListEl.innerHTML.length, "Zeichen.");
-        }
-
-        // CHECK 3: Ist die Render-Funktion erfolgreich überschrieben worden?
-        if (window.UIManager && window.UIManager.renderBricks) {
-            const funcString = window.UIManager.renderBricks.toString();
-            if (funcString.includes('generateThumbnail')) {
-                console.log("✅ Hijack-Check: UIManager.renderBricks wurde erfolgreich vom Addon überschrieben.");
-            } else {
-                console.warn("⚠️ WARNUNG: UIManager.renderBricks nutzt noch immer den originalen Text-Code! Das Addon hat nicht gegriffen.");
-            }
-        }
-
-        // CHECK 4: Funktioniert das 3D-Fotostudio im RAM? (Test-Bild schießen)
-        try {
-            if (window.GeometryFactory && Registry.bricks['b11']) {
-                console.log("📸 Teste 3D-Fotostudio: Generiere Test-Icon für Standard-Würfel 'b11'...");
+        UIManager.renderBricks = function(category) {
+            const container = document.getElementById('brick-list');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            const filteredBricks = Object.keys(Registry.bricks).filter(id => Registry.bricks[id].category === category);
+            
+            filteredBricks.forEach(id => {
+                const config = Registry.bricks[id];
+                if (!thumbnailCache[id]) thumbnailCache[id] = generateThumbnail(id);
                 
-                // Wir spiegeln kurz die Generierungs-Logik
-                const size = 80;
-                const testRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-                testRenderer.setSize(size, size);
-                const testScene = new THREE.Scene();
-                const testCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
-                testCamera.position.set(2, 1.6, 2);
-                testCamera.lookAt(0, 0.1, 0);
+                const tile = document.createElement('button');
+                tile.className = `brick-gallery-item ${App.selectedBrick === id ? 'active' : ''}`;
+                tile.title = config.name;
                 
-                const testMesh = GeometryFactory.create('b11');
-                if (testMesh) {
-                    testScene.add(testMesh);
-                    testRenderer.render(testScene, testCamera);
-                    const testUrl = testRenderer.domElement.toDataURL();
-                    testRenderer.dispose();
-                    
-                    if (testUrl && testUrl.startsWith('data:image')) {
-                        console.log("✅ Studio-Check: 3D-Foto erfolgreich im Arbeitsspeicher geschossen!");
-                        console.log("   Bilddaten-Vorschau (Länge):", testUrl.length, "Zeichen.");
-                    } else {
-                        console.error("❌ FEHLER: Das Fotostudio liefert kein gültiges Bild (DataURL leer oder fehlerhaft).");
-                    }
+                if (thumbnailCache[id]) {
+                    const img = document.createElement('img'); 
+                    img.src = thumbnailCache[id]; 
+                    img.alt = config.name;
+                    tile.appendChild(img);
                 } else {
-                    console.error("❌ FEHLER: GeometryFactory konnte kein 3D-Mesh für den Teststein erzeugen.");
+                    tile.innerText = '🧱';
                 }
-            }
-        } catch (err) {
-            console.error("💥 SYSTEM-CRASH im Fotostudio! Das Skript bricht ab mit Fehler:", err.message);
-            console.error(err.stack);
-        }
+                
+                tile.onclick = () => {
+                    App.selectedBrick = id; // Verbindet mit der Haupt-Auswahl
+                    document.querySelectorAll('.brick-gallery-item').forEach(el => el.classList.remove('active'));
+                    tile.classList.add('active');
+                    if (window.SoundFX) SoundFX.play('click');
+                    if (typeof Engine3D !== 'undefined') Engine3D.refreshPreview();
+                    if (TouchOptimizer.isMobileLayout) TouchOptimizer.closeAllMenus();
+                };
+                container.appendChild(tile);
+            });
+        };
 
-        console.log("🏁 Inspektion abgeschlossen. Bitte prüfe die obigen Meldungen.");
-        console.groupEnd();
-    }, 1500); // Wartet 1,5 Sekunden, bis die App sich beruhigt hat
+        // Mobile Optimierungen zünden
+        TouchOptimizer.init();
+        
+        // Erstmaliges Zeichnen der Start-Kategorie erzwingen
+        UIManager.renderBricks('standard');
+    }
 })();
-
-
-
 </script>
 </body>
 </html>
